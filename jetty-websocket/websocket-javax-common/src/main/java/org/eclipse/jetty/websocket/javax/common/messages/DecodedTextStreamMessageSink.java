@@ -26,14 +26,21 @@ import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.exception.CloseException;
 import org.eclipse.jetty.websocket.core.internal.messages.MessageSink;
 import org.eclipse.jetty.websocket.core.internal.messages.ReaderMessageSink;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 import org.eclipse.jetty.websocket.javax.common.JavaxWebSocketFrameHandlerFactory;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 
 public class DecodedTextStreamMessageSink<T> extends AbstractDecodedMessageSink.Stream<Decoder.TextStream<T>>
 {
-    public DecodedTextStreamMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
+    public DecodedTextStreamMessageSink(CoreSession session, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
     {
         super(session, methodHandle, decoders);
+    }
+
+    @Deprecated
+    public DecodedTextStreamMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
+    {
+        super(session, new JettyMethodHandle(methodHandle), decoders);
     }
 
     @Override
@@ -42,7 +49,7 @@ public class DecodedTextStreamMessageSink<T> extends AbstractDecodedMessageSink.
         MethodHandle methodHandle = JavaxWebSocketFrameHandlerFactory.getServerMethodHandleLookup()
             .findVirtual(DecodedTextStreamMessageSink.class, "onStreamStart", MethodType.methodType(void.class, Reader.class))
             .bindTo(this);
-        return new ReaderMessageSink(coreSession, methodHandle);
+        return new ReaderMessageSink(coreSession, new JettyMethodHandle(methodHandle));
     }
 
     public void onStreamStart(Reader reader)

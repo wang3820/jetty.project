@@ -143,14 +143,14 @@ public class InvokerUtils
      * @param objs the list of optional objects to bind to.
      * @return the bound MethodHandle, or null if the provided {@code methodHandle} was null.
      */
-    public static MethodHandle bindTo(MethodHandle methodHandle, Object... objs)
+    public static JettyMethodHandle bindTo(JettyMethodHandle methodHandle, Object... objs)
     {
         if (methodHandle == null)
             return null;
-        MethodHandle ret = methodHandle;
+        JettyMethodHandle ret = methodHandle;
         for (Object obj : objs)
         {
-            if (ret.type().parameterType(0).isAssignableFrom(obj.getClass()))
+            if (ret.parameterType(0).isAssignableFrom(obj.getClass()))
             {
                 ret = ret.bindTo(obj);
             }

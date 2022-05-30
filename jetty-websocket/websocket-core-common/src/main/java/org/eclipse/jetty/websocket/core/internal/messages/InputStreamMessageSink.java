@@ -17,12 +17,19 @@ import java.lang.invoke.MethodHandle;
 
 import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 
 public class InputStreamMessageSink extends DispatchedMessageSink
 {
-    public InputStreamMessageSink(CoreSession session, MethodHandle methodHandle)
+    public InputStreamMessageSink(CoreSession session, JettyMethodHandle methodHandle)
     {
         super(session, methodHandle);
+    }
+
+    @Deprecated
+    public InputStreamMessageSink(CoreSession session, MethodHandle methodHandle)
+    {
+        this(session, new JettyMethodHandle(methodHandle));
     }
 
     @Override

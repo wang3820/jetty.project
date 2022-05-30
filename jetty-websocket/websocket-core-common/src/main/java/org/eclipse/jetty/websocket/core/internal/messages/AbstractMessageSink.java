@@ -13,17 +13,17 @@
 
 package org.eclipse.jetty.websocket.core.internal.messages;
 
-import java.lang.invoke.MethodHandle;
 import java.util.Objects;
 
 import org.eclipse.jetty.websocket.core.CoreSession;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 
 public abstract class AbstractMessageSink implements MessageSink
 {
     protected final CoreSession session;
-    protected final MethodHandle methodHandle;
+    protected final JettyMethodHandle methodHandle;
 
-    public AbstractMessageSink(CoreSession session, MethodHandle methodHandle)
+    public AbstractMessageSink(CoreSession session, JettyMethodHandle methodHandle)
     {
         this.session = Objects.requireNonNull(session, "CoreSession");
         this.methodHandle = Objects.requireNonNull(methodHandle, "MethodHandle");

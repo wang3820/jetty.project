@@ -13,18 +13,17 @@
 
 package org.eclipse.jetty.websocket.core.internal.messages;
 
-import java.lang.invoke.MethodHandle;
-
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 
 public class PartialByteArrayMessageSink extends AbstractMessageSink
 {
-    private static byte[] EMPTY_BUFFER = new byte[0];
+    private static final byte[] EMPTY_BUFFER = new byte[0];
 
-    public PartialByteArrayMessageSink(CoreSession session, MethodHandle methodHandle)
+    public PartialByteArrayMessageSink(CoreSession session, JettyMethodHandle methodHandle)
     {
         super(session, methodHandle);
     }

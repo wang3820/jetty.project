@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty.websocket.javax.common.messages;
 
-import java.lang.invoke.MethodHandle;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.websocket.CloseReason;
@@ -24,6 +23,7 @@ import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
 import org.eclipse.jetty.websocket.core.exception.CloseException;
 import org.eclipse.jetty.websocket.core.internal.messages.MessageSink;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,10 +32,10 @@ public abstract class AbstractDecodedMessageSink implements MessageSink
 {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractDecodedMessageSink.class);
 
-    private final MethodHandle _methodHandle;
+    private final JettyMethodHandle _methodHandle;
     private final MessageSink _messageSink;
 
-    public AbstractDecodedMessageSink(CoreSession coreSession, MethodHandle methodHandle)
+    public AbstractDecodedMessageSink(CoreSession coreSession, JettyMethodHandle methodHandle)
     {
         _methodHandle = methodHandle;
 
@@ -84,7 +84,7 @@ public abstract class AbstractDecodedMessageSink implements MessageSink
     {
         protected final List<T> _decoders;
 
-        public Basic(CoreSession coreSession, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
+        public Basic(CoreSession coreSession, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
         {
             super(coreSession, methodHandle);
             if (decoders.isEmpty())
@@ -99,7 +99,7 @@ public abstract class AbstractDecodedMessageSink implements MessageSink
     {
         protected final T _decoder;
 
-        public Stream(CoreSession coreSession, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
+        public Stream(CoreSession coreSession, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
         {
             super(coreSession, methodHandle);
             if (decoders.size() != 1)

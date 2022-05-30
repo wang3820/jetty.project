@@ -14,21 +14,26 @@
 package org.eclipse.jetty.websocket.core.internal.messages;
 
 import java.lang.invoke.MethodHandle;
-import java.util.Objects;
 
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Utf8StringBuilder;
 import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 
 public class PartialStringMessageSink extends AbstractMessageSink
 {
     private Utf8StringBuilder out;
 
-    public PartialStringMessageSink(CoreSession session, MethodHandle methodHandle)
+    public PartialStringMessageSink(CoreSession session, JettyMethodHandle methodHandle)
     {
         super(session, methodHandle);
-        Objects.requireNonNull(methodHandle, "MethodHandle");
+    }
+
+    @Deprecated
+    public PartialStringMessageSink(CoreSession session, MethodHandle methodHandle)
+    {
+        this(session, new JettyMethodHandle(methodHandle));
     }
 
     @Override

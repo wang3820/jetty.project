@@ -20,16 +20,23 @@ import org.eclipse.jetty.util.Utf8StringBuilder;
 import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
 import org.eclipse.jetty.websocket.core.exception.MessageTooLargeException;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 
 public class StringMessageSink extends AbstractMessageSink
 {
     private Utf8StringBuilder out;
     private int size;
 
-    public StringMessageSink(CoreSession session, MethodHandle methodHandle)
+    public StringMessageSink(CoreSession session, JettyMethodHandle methodHandle)
     {
         super(session, methodHandle);
         this.size = 0;
+    }
+
+    @Deprecated
+    public StringMessageSink(CoreSession session, MethodHandle methodHandle)
+    {
+        this(session, new JettyMethodHandle(methodHandle));
     }
 
     @Override

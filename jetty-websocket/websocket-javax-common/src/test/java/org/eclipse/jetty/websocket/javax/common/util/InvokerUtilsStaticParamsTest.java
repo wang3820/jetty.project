@@ -22,6 +22,7 @@ import javax.websocket.Session;
 
 import org.eclipse.jetty.util.annotation.Name;
 import org.eclipse.jetty.websocket.core.internal.util.InvokerUtils;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 import org.eclipse.jetty.websocket.core.internal.util.ReflectUtils;
 import org.eclipse.jetty.websocket.javax.common.JavaxWebSocketFrameHandlerFactory;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,12 @@ public class InvokerUtilsStaticParamsTest
     
     private static MethodHandles.Lookup lookup = MethodHandles.lookup();
 
+    private JettyMethodHandle getMethodHandle(Method method, String[] namedVariables)
+    {
+        MethodHandle methodHandle = InvokerUtils.mutatedInvoker(lookup, Foo.class, method, new NameParamIdentifier(), namedVariables);
+        return new JettyMethodHandle(methodHandle);
+    }
+
     @Test
     public void testOnlyParamString() throws Throwable
     {
@@ -70,7 +77,7 @@ public class InvokerUtilsStaticParamsTest
         // Raw Calling Args - none specified
 
         // Get basic method handle (without a instance to call against) - this is what the metadata stores
-        MethodHandle methodHandle = InvokerUtils.mutatedInvoker(lookup, Foo.class, method, new NameParamIdentifier(), namedVariables);
+        JettyMethodHandle methodHandle = getMethodHandle(method, namedVariables);
 
         // Some point later an actual instance is needed, which has static named parameters
         Map<String, String> templateValues = new HashMap<>();
@@ -99,7 +106,7 @@ public class InvokerUtilsStaticParamsTest
         };
 
         // Get basic method handle (without a instance to call against) - this is what the metadata stores
-        MethodHandle methodHandle = InvokerUtils.mutatedInvoker(lookup, Foo.class, method, new NameParamIdentifier(), namedVariables);
+        JettyMethodHandle methodHandle = getMethodHandle(method, namedVariables);
 
         // Some point later an actual instance is needed, which has static named parameters
         Map<String, String> templateValues = new HashMap<>();
@@ -130,7 +137,7 @@ public class InvokerUtilsStaticParamsTest
         final InvokerUtils.Arg ARG_LABEL = new InvokerUtils.Arg(String.class).required();
 
         // Get basic method handle (without a instance to call against) - this is what the metadata stores
-        MethodHandle methodHandle = InvokerUtils.mutatedInvoker(lookup, Foo.class, method, new NameParamIdentifier(), namedVariables, ARG_LABEL);
+        JettyMethodHandle methodHandle = getMethodHandle(method, namedVariables);
 
         // Some point later an actual instance is needed, which has static named parameters
         Map<String, String> templateValues = new HashMap<>();

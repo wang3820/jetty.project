@@ -25,6 +25,7 @@ import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.exception.CloseException;
 import org.eclipse.jetty.websocket.core.internal.messages.ByteBufferMessageSink;
 import org.eclipse.jetty.websocket.core.internal.messages.MessageSink;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 import org.eclipse.jetty.websocket.javax.common.JavaxWebSocketFrameHandlerFactory;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 import org.slf4j.Logger;
@@ -34,9 +35,15 @@ public class DecodedBinaryMessageSink<T> extends AbstractDecodedMessageSink.Basi
 {
     private static final Logger LOG = LoggerFactory.getLogger(DecodedBinaryMessageSink.class);
 
-    public DecodedBinaryMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
+    public DecodedBinaryMessageSink(CoreSession session, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
     {
         super(session, methodHandle, decoders);
+    }
+
+    @Deprecated
+    public DecodedBinaryMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
+    {
+        super(session, new JettyMethodHandle(methodHandle), decoders);
     }
 
     @Override
@@ -45,7 +52,7 @@ public class DecodedBinaryMessageSink<T> extends AbstractDecodedMessageSink.Basi
         MethodHandle methodHandle = JavaxWebSocketFrameHandlerFactory.getServerMethodHandleLookup()
             .findVirtual(DecodedBinaryMessageSink.class, "onWholeMessage", MethodType.methodType(void.class, ByteBuffer.class))
             .bindTo(this);
-        return new ByteBufferMessageSink(coreSession, methodHandle);
+        return new ByteBufferMessageSink(coreSession, new JettyMethodHandle(methodHandle));
     }
 
     public void onWholeMessage(ByteBuffer wholeMessage)

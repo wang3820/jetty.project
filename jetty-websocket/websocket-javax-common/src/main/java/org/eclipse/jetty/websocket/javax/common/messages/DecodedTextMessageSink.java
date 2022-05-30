@@ -24,6 +24,7 @@ import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.exception.CloseException;
 import org.eclipse.jetty.websocket.core.internal.messages.MessageSink;
 import org.eclipse.jetty.websocket.core.internal.messages.StringMessageSink;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 import org.eclipse.jetty.websocket.javax.common.JavaxWebSocketFrameHandlerFactory;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 import org.slf4j.Logger;
@@ -33,10 +34,17 @@ public class DecodedTextMessageSink<T> extends AbstractDecodedMessageSink.Basic<
 {
     private static final Logger LOG = LoggerFactory.getLogger(DecodedTextMessageSink.class);
 
-    public DecodedTextMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
+    public DecodedTextMessageSink(CoreSession session, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
     {
         super(session, methodHandle, decoders);
     }
+
+    @Deprecated
+    public DecodedTextMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
+    {
+        super(session, new JettyMethodHandle(methodHandle), decoders);
+    }
+
 
     @Override
     MessageSink newMessageSink(CoreSession coreSession) throws NoSuchMethodException, IllegalAccessException
@@ -44,7 +52,7 @@ public class DecodedTextMessageSink<T> extends AbstractDecodedMessageSink.Basic<
         MethodHandle methodHandle = JavaxWebSocketFrameHandlerFactory.getServerMethodHandleLookup()
             .findVirtual(getClass(), "onMessage", MethodType.methodType(void.class, String.class))
             .bindTo(this);
-        return new StringMessageSink(coreSession, methodHandle);
+        return new StringMessageSink(coreSession, new JettyMethodHandle(methodHandle));
     }
 
     public void onMessage(String wholeMessage)

@@ -14,9 +14,7 @@
 package org.eclipse.jetty.websocket.core.internal.messages;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
-import java.util.Objects;
 
 import org.eclipse.jetty.io.ByteBufferCallbackAccumulator;
 import org.eclipse.jetty.io.ByteBufferPool;
@@ -24,24 +22,22 @@ import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
-import org.eclipse.jetty.websocket.core.exception.InvalidSignatureException;
 import org.eclipse.jetty.websocket.core.exception.MessageTooLargeException;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 
 public class ByteBufferMessageSink extends AbstractMessageSink
 {
     private ByteBufferCallbackAccumulator out;
 
-    public ByteBufferMessageSink(CoreSession session, MethodHandle methodHandle)
+    public ByteBufferMessageSink(CoreSession session, JettyMethodHandle methodHandle)
     {
         super(session, methodHandle);
+    }
 
-        // Validate onMessageMethod
-        Objects.requireNonNull(methodHandle, "MethodHandle");
-        MethodType onMessageType = MethodType.methodType(Void.TYPE, ByteBuffer.class);
-        if (methodHandle.type() != onMessageType)
-        {
-            throw InvalidSignatureException.build(onMessageType, methodHandle.type());
-        }
+    @Deprecated
+    public ByteBufferMessageSink(CoreSession session, MethodHandle methodHandle)
+    {
+        this(session, new JettyMethodHandle(methodHandle));
     }
 
     @Override

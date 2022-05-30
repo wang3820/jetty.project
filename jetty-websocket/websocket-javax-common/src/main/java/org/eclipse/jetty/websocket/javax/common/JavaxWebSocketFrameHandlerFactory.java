@@ -46,6 +46,7 @@ import org.eclipse.jetty.websocket.core.internal.messages.PartialByteArrayMessag
 import org.eclipse.jetty.websocket.core.internal.messages.PartialByteBufferMessageSink;
 import org.eclipse.jetty.websocket.core.internal.messages.PartialStringMessageSink;
 import org.eclipse.jetty.websocket.core.internal.util.InvokerUtils;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 import org.eclipse.jetty.websocket.core.internal.util.ReflectUtils;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 import org.eclipse.jetty.websocket.javax.common.messages.AbstractDecodedMessageSink;
@@ -135,10 +136,10 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (metadata == null)
             return null;
 
-        MethodHandle openHandle = metadata.getOpenHandle();
-        MethodHandle closeHandle = metadata.getCloseHandle();
-        MethodHandle errorHandle = metadata.getErrorHandle();
-        MethodHandle pongHandle = metadata.getPongHandle();
+        JettyMethodHandle openHandle = JettyMethodHandle.from(metadata.getOpenHandle());
+        JettyMethodHandle closeHandle = JettyMethodHandle.from(metadata.getCloseHandle());
+        JettyMethodHandle errorHandle = JettyMethodHandle.from(metadata.getErrorHandle());
+        JettyMethodHandle pongHandle = JettyMethodHandle.from(metadata.getPongHandle());
 
         JavaxWebSocketMessageMetadata textMetadata = JavaxWebSocketMessageMetadata.copyOf(metadata.getTextMetadata());
         JavaxWebSocketMessageMetadata binaryMetadata = JavaxWebSocketMessageMetadata.copyOf(metadata.getBinaryMetadata());
@@ -190,14 +191,14 @@ public abstract class JavaxWebSocketFrameHandlerFactory
             if (AbstractDecodedMessageSink.class.isAssignableFrom(msgMetadata.getSinkClass()))
             {
                 MethodHandle ctorHandle = lookup.findConstructor(msgMetadata.getSinkClass(),
-                    MethodType.methodType(void.class, CoreSession.class, MethodHandle.class, List.class));
+                    MethodType.methodType(void.class, CoreSession.class, JettyMethodHandle.class, List.class));
                 List<RegisteredDecoder> registeredDecoders = msgMetadata.getRegisteredDecoders();
                 return (MessageSink)ctorHandle.invoke(session.getCoreSession(), msgMetadata.getMethodHandle(), registeredDecoders);
             }
             else
             {
                 MethodHandle ctorHandle = lookup.findConstructor(msgMetadata.getSinkClass(),
-                    MethodType.methodType(void.class, CoreSession.class, MethodHandle.class));
+                    MethodType.methodType(void.class, CoreSession.class, JettyMethodHandle.class));
                 return (MessageSink)ctorHandle.invoke(session.getCoreSession(), msgMetadata.getMethodHandle());
             }
         }
@@ -219,21 +220,21 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         }
     }
 
-    public static MethodHandle wrapNonVoidReturnType(MethodHandle handle, JavaxWebSocketSession session)
+    public static JettyMethodHandle wrapNonVoidReturnType(JettyMethodHandle handle, JavaxWebSocketSession session)
     {
         if (handle == null)
             return null;
 
-        if (handle.type().returnType() == Void.TYPE)
+        if (handle.returnType() == Void.TYPE)
             return handle;
 
         // Technique from  https://stackoverflow.com/questions/48505787/methodhandle-with-general-non-void-return-filter
 
         // Change the return type of the to be Object so it will match exact with JavaxWebSocketSession.filterReturnType(Object)
-        handle = handle.asType(handle.type().changeReturnType(Object.class));
+        handle = handle.changeReturnType(Object.class);
 
         // Filter the method return type to a call to JavaxWebSocketSession.filterReturnType() bound to this session
-        handle = MethodHandles.filterReturnValue(handle, FILTER_RETURN_TYPE_METHOD.bindTo(session));
+        handle = JettyMethodHandle.filterReturnValue(handle, FILTER_RETURN_TYPE_METHOD.bindTo(session));
 
         return handle;
     }
@@ -360,7 +361,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (methodHandle != null)
         {
             msgMetadata.setSinkClass(PartialStringMessageSink.class);
-            msgMetadata.setMethodHandle(methodHandle);
+            msgMetadata.setMethodHandle(new JettyMethodHandle(methodHandle));
             metadata.setTextMetadata(msgMetadata, onMsg);
             return true;
         }
@@ -370,7 +371,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (methodHandle != null)
         {
             msgMetadata.setSinkClass(PartialByteBufferMessageSink.class);
-            msgMetadata.setMethodHandle(methodHandle);
+            msgMetadata.setMethodHandle(new JettyMethodHandle(methodHandle));
             metadata.setBinaryMetadata(msgMetadata, onMsg);
             return true;
         }
@@ -380,7 +381,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (methodHandle != null)
         {
             msgMetadata.setSinkClass(PartialByteArrayMessageSink.class);
-            msgMetadata.setMethodHandle(methodHandle);
+            msgMetadata.setMethodHandle(new JettyMethodHandle(methodHandle));
             metadata.setBinaryMetadata(msgMetadata, onMsg);
             return true;
         }
@@ -423,7 +424,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
                 objectType = decoder.objectType;
         }
         MethodHandle methodHandle = getMethodHandle.apply(getArgsFor(objectType));
-        msgMetadata.setMethodHandle(methodHandle);
+        msgMetadata.setMethodHandle(new JettyMethodHandle(methodHandle));
 
         // Set the sinkClass and then set the MessageMetadata on the FrameHandlerMetadata
         if (interfaceType.equals(Decoder.Text.class))
@@ -508,7 +509,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
      * have been statically assigned a converted value (and removed from the resulting {@link MethodHandle#type()}, or null if
      * no {@code target} MethodHandle was provided.
      */
-    public static MethodHandle bindTemplateVariables(MethodHandle target, String[] namedVariables, Map<String, String> templateValues)
+    public static JettyMethodHandle bindTemplateVariables(JettyMethodHandle target, String[] namedVariables, Map<String, String> templateValues)
     {
         if (target == null)
         {
@@ -517,7 +518,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
 
         final int IDX = 1;
 
-        MethodHandle retHandle = target;
+        JettyMethodHandle retHandle = target;
 
         if ((templateValues == null) || (templateValues.isEmpty()))
         {
@@ -527,54 +528,54 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         for (String variableName : namedVariables)
         {
             String strValue = templateValues.get(variableName);
-            Class<?> type = retHandle.type().parameterType(IDX);
+            Class<?> type = retHandle.parameterType(IDX);
             try
             {
                 if (String.class.isAssignableFrom(type))
                 {
-                    retHandle = MethodHandles.insertArguments(retHandle, IDX, strValue);
+                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, strValue);
                 }
                 else if (Integer.class.isAssignableFrom(type) || Integer.TYPE.isAssignableFrom(type))
                 {
                     Integer intValue = Integer.parseInt(strValue);
-                    retHandle = MethodHandles.insertArguments(retHandle, IDX, intValue);
+                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, intValue);
                 }
                 else if (Long.class.isAssignableFrom(type) || Long.TYPE.isAssignableFrom(type))
                 {
                     Long longValue = Long.parseLong(strValue);
-                    retHandle = MethodHandles.insertArguments(retHandle, IDX, longValue);
+                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, longValue);
                 }
                 else if (Short.class.isAssignableFrom(type) || Short.TYPE.isAssignableFrom(type))
                 {
                     Short shortValue = Short.parseShort(strValue);
-                    retHandle = MethodHandles.insertArguments(retHandle, IDX, shortValue);
+                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, shortValue);
                 }
                 else if (Float.class.isAssignableFrom(type) || Float.TYPE.isAssignableFrom(type))
                 {
                     Float floatValue = Float.parseFloat(strValue);
-                    retHandle = MethodHandles.insertArguments(retHandle, IDX, floatValue);
+                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, floatValue);
                 }
                 else if (Double.class.isAssignableFrom(type) || Double.TYPE.isAssignableFrom(type))
                 {
                     Double doubleValue = Double.parseDouble(strValue);
-                    retHandle = MethodHandles.insertArguments(retHandle, IDX, doubleValue);
+                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, doubleValue);
                 }
                 else if (Boolean.class.isAssignableFrom(type) || Boolean.TYPE.isAssignableFrom(type))
                 {
                     Boolean boolValue = Boolean.parseBoolean(strValue);
-                    retHandle = MethodHandles.insertArguments(retHandle, IDX, boolValue);
+                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, boolValue);
                 }
                 else if (Character.class.isAssignableFrom(type) || Character.TYPE.isAssignableFrom(type))
                 {
                     if (strValue.length() != 1)
                         throw new IllegalArgumentException("Invalid Size");
                     Character charValue = strValue.charAt(0);
-                    retHandle = MethodHandles.insertArguments(retHandle, IDX, charValue);
+                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, charValue);
                 }
                 else if (Byte.class.isAssignableFrom(type) || Byte.TYPE.isAssignableFrom(type))
                 {
                     Byte b = Byte.parseByte(strValue);
-                    retHandle = MethodHandles.insertArguments(retHandle, IDX, b);
+                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, b);
                 }
                 else
                 {

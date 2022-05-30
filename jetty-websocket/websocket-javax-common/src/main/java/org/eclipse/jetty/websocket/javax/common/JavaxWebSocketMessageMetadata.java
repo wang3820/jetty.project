@@ -13,15 +13,15 @@
 
 package org.eclipse.jetty.websocket.javax.common;
 
-import java.lang.invoke.MethodHandle;
 import java.util.List;
 
 import org.eclipse.jetty.websocket.core.internal.messages.MessageSink;
+import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 
 public class JavaxWebSocketMessageMetadata
 {
-    private MethodHandle methodHandle;
+    private JettyMethodHandle methodHandle;
     private Class<? extends MessageSink> sinkClass;
     private List<RegisteredDecoder> registeredDecoders;
 
@@ -58,12 +58,12 @@ public class JavaxWebSocketMessageMetadata
         this.maxMessageSizeSet = true;
     }
 
-    public MethodHandle getMethodHandle()
+    public JettyMethodHandle getMethodHandle()
     {
         return methodHandle;
     }
 
-    public void setMethodHandle(MethodHandle methodHandle)
+    public void setMethodHandle(JettyMethodHandle methodHandle)
     {
         this.methodHandle = methodHandle;
     }
