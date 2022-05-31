@@ -58,9 +58,9 @@ public class InvokerUtilsStaticParamsTest
     
     private static MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-    private JettyMethodHandle getMethodHandle(Method method, String[] namedVariables)
+    private JettyMethodHandle getMethodHandle(Method method, String[] namedVariables, InvokerUtils.Arg... args)
     {
-        MethodHandle methodHandle = InvokerUtils.mutatedInvoker(lookup, Foo.class, method, new NameParamIdentifier(), namedVariables);
+        MethodHandle methodHandle = InvokerUtils.mutatedInvoker(lookup, Foo.class, method, new NameParamIdentifier(), namedVariables, args);
         return new JettyMethodHandle(methodHandle);
     }
 
@@ -137,7 +137,7 @@ public class InvokerUtilsStaticParamsTest
         final InvokerUtils.Arg ARG_LABEL = new InvokerUtils.Arg(String.class).required();
 
         // Get basic method handle (without a instance to call against) - this is what the metadata stores
-        JettyMethodHandle methodHandle = getMethodHandle(method, namedVariables);
+        JettyMethodHandle methodHandle = getMethodHandle(method, namedVariables, ARG_LABEL);
 
         // Some point later an actual instance is needed, which has static named parameters
         Map<String, String> templateValues = new HashMap<>();

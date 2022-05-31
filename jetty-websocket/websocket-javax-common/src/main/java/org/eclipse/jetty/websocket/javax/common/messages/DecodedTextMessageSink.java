@@ -45,7 +45,6 @@ public class DecodedTextMessageSink<T> extends AbstractDecodedMessageSink.Basic<
         super(session, new JettyMethodHandle(methodHandle), decoders);
     }
 
-
     @Override
     MessageSink newMessageSink(CoreSession coreSession) throws NoSuchMethodException, IllegalAccessException
     {
