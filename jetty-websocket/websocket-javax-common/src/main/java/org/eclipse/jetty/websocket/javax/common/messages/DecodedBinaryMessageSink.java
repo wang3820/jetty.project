@@ -43,7 +43,7 @@ public class DecodedBinaryMessageSink<T> extends AbstractDecodedMessageSink.Basi
     @Deprecated
     public DecodedBinaryMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
     {
-        super(session, new JettyMethodHandle(methodHandle), decoders);
+        super(session, JettyMethodHandle.from(methodHandle), decoders);
     }
 
     @Override
@@ -52,7 +52,7 @@ public class DecodedBinaryMessageSink<T> extends AbstractDecodedMessageSink.Basi
         MethodHandle methodHandle = JavaxWebSocketFrameHandlerFactory.getServerMethodHandleLookup()
             .findVirtual(DecodedBinaryMessageSink.class, "onWholeMessage", MethodType.methodType(void.class, ByteBuffer.class))
             .bindTo(this);
-        return new ByteBufferMessageSink(coreSession, new JettyMethodHandle(methodHandle));
+        return new ByteBufferMessageSink(coreSession, JettyMethodHandle.from(methodHandle));
     }
 
     public void onWholeMessage(ByteBuffer wholeMessage)

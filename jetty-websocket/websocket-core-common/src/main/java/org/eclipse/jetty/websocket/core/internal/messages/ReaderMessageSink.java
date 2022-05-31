@@ -29,7 +29,7 @@ public class ReaderMessageSink extends DispatchedMessageSink
     @Deprecated
     public ReaderMessageSink(CoreSession session, MethodHandle methodHandle)
     {
-        this(session, new JettyMethodHandle(methodHandle));
+        this(session, JettyMethodHandle.from(methodHandle));
     }
 
     @Override

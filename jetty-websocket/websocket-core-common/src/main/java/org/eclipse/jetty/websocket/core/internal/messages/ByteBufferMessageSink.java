@@ -37,7 +37,7 @@ public class ByteBufferMessageSink extends AbstractMessageSink
     @Deprecated
     public ByteBufferMessageSink(CoreSession session, MethodHandle methodHandle)
     {
-        this(session, new JettyMethodHandle(methodHandle));
+        this(session, JettyMethodHandle.from(methodHandle));
     }
 
     @Override

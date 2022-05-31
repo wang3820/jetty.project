@@ -42,7 +42,7 @@ public class DecodedTextMessageSink<T> extends AbstractDecodedMessageSink.Basic<
     @Deprecated
     public DecodedTextMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
     {
-        super(session, new JettyMethodHandle(methodHandle), decoders);
+        super(session, JettyMethodHandle.from(methodHandle), decoders);
     }
 
     @Override
@@ -51,7 +51,7 @@ public class DecodedTextMessageSink<T> extends AbstractDecodedMessageSink.Basic<
         MethodHandle methodHandle = JavaxWebSocketFrameHandlerFactory.getServerMethodHandleLookup()
             .findVirtual(getClass(), "onMessage", MethodType.methodType(void.class, String.class))
             .bindTo(this);
-        return new StringMessageSink(coreSession, new JettyMethodHandle(methodHandle));
+        return new StringMessageSink(coreSession, JettyMethodHandle.from(methodHandle));
     }
 
     public void onMessage(String wholeMessage)

@@ -36,7 +36,7 @@ public class StringMessageSink extends AbstractMessageSink
     @Deprecated
     public StringMessageSink(CoreSession session, MethodHandle methodHandle)
     {
-        this(session, new JettyMethodHandle(methodHandle));
+        this(session, JettyMethodHandle.from(methodHandle));
     }
 
     @Override

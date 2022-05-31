@@ -40,7 +40,7 @@ public class DecodedBinaryStreamMessageSink<T> extends AbstractDecodedMessageSin
     @Deprecated
     public DecodedBinaryStreamMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
     {
-        super(session, new JettyMethodHandle(methodHandle), decoders);
+        super(session, JettyMethodHandle.from(methodHandle), decoders);
     }
 
     @Override
@@ -49,7 +49,7 @@ public class DecodedBinaryStreamMessageSink<T> extends AbstractDecodedMessageSin
         MethodHandle methodHandle = JavaxWebSocketFrameHandlerFactory.getServerMethodHandleLookup()
             .findVirtual(DecodedBinaryStreamMessageSink.class, "onStreamStart", MethodType.methodType(void.class, InputStream.class))
             .bindTo(this);
-        return new InputStreamMessageSink(coreSession, new JettyMethodHandle(methodHandle));
+        return new InputStreamMessageSink(coreSession, JettyMethodHandle.from(methodHandle));
     }
 
     public void onStreamStart(InputStream stream)

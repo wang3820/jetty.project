@@ -234,7 +234,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         handle = handle.changeReturnType(Object.class);
 
         // Filter the method return type to a call to JavaxWebSocketSession.filterReturnType() bound to this session
-        handle = JettyMethodHandle.filterReturnValue(handle, FILTER_RETURN_TYPE_METHOD.bindTo(session));
+        handle = handle.filterReturnValue(FILTER_RETURN_TYPE_METHOD.bindTo(session));
 
         return handle;
     }
@@ -361,7 +361,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (methodHandle != null)
         {
             msgMetadata.setSinkClass(PartialStringMessageSink.class);
-            msgMetadata.setMethodHandle(new JettyMethodHandle(methodHandle));
+            msgMetadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
             metadata.setTextMetadata(msgMetadata, onMsg);
             return true;
         }
@@ -371,7 +371,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (methodHandle != null)
         {
             msgMetadata.setSinkClass(PartialByteBufferMessageSink.class);
-            msgMetadata.setMethodHandle(new JettyMethodHandle(methodHandle));
+            msgMetadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
             metadata.setBinaryMetadata(msgMetadata, onMsg);
             return true;
         }
@@ -381,7 +381,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (methodHandle != null)
         {
             msgMetadata.setSinkClass(PartialByteArrayMessageSink.class);
-            msgMetadata.setMethodHandle(new JettyMethodHandle(methodHandle));
+            msgMetadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
             metadata.setBinaryMetadata(msgMetadata, onMsg);
             return true;
         }
@@ -424,7 +424,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
                 objectType = decoder.objectType;
         }
         MethodHandle methodHandle = getMethodHandle.apply(getArgsFor(objectType));
-        msgMetadata.setMethodHandle(new JettyMethodHandle(methodHandle));
+        msgMetadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
 
         // Set the sinkClass and then set the MessageMetadata on the FrameHandlerMetadata
         if (interfaceType.equals(Decoder.Text.class))
@@ -533,49 +533,49 @@ public abstract class JavaxWebSocketFrameHandlerFactory
             {
                 if (String.class.isAssignableFrom(type))
                 {
-                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, strValue);
+                    retHandle = retHandle.insertArguments(IDX, strValue);
                 }
                 else if (Integer.class.isAssignableFrom(type) || Integer.TYPE.isAssignableFrom(type))
                 {
                     Integer intValue = Integer.parseInt(strValue);
-                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, intValue);
+                    retHandle = retHandle.insertArguments(IDX, intValue);
                 }
                 else if (Long.class.isAssignableFrom(type) || Long.TYPE.isAssignableFrom(type))
                 {
                     Long longValue = Long.parseLong(strValue);
-                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, longValue);
+                    retHandle = retHandle.insertArguments(IDX, longValue);
                 }
                 else if (Short.class.isAssignableFrom(type) || Short.TYPE.isAssignableFrom(type))
                 {
                     Short shortValue = Short.parseShort(strValue);
-                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, shortValue);
+                    retHandle = retHandle.insertArguments(IDX, shortValue);
                 }
                 else if (Float.class.isAssignableFrom(type) || Float.TYPE.isAssignableFrom(type))
                 {
                     Float floatValue = Float.parseFloat(strValue);
-                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, floatValue);
+                    retHandle = retHandle.insertArguments(IDX, floatValue);
                 }
                 else if (Double.class.isAssignableFrom(type) || Double.TYPE.isAssignableFrom(type))
                 {
                     Double doubleValue = Double.parseDouble(strValue);
-                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, doubleValue);
+                    retHandle = retHandle.insertArguments(IDX, doubleValue);
                 }
                 else if (Boolean.class.isAssignableFrom(type) || Boolean.TYPE.isAssignableFrom(type))
                 {
                     Boolean boolValue = Boolean.parseBoolean(strValue);
-                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, boolValue);
+                    retHandle = retHandle.insertArguments(IDX, boolValue);
                 }
                 else if (Character.class.isAssignableFrom(type) || Character.TYPE.isAssignableFrom(type))
                 {
                     if (strValue.length() != 1)
                         throw new IllegalArgumentException("Invalid Size");
                     Character charValue = strValue.charAt(0);
-                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, charValue);
+                    retHandle = retHandle.insertArguments(IDX, charValue);
                 }
                 else if (Byte.class.isAssignableFrom(type) || Byte.TYPE.isAssignableFrom(type))
                 {
                     Byte b = Byte.parseByte(strValue);
-                    retHandle = JettyMethodHandle.insertArguments(retHandle, IDX, b);
+                    retHandle = retHandle.insertArguments(IDX, b);
                 }
                 else
                 {

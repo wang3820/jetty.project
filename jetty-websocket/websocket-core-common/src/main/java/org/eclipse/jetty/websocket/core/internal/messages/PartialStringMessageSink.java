@@ -33,7 +33,7 @@ public class PartialStringMessageSink extends AbstractMessageSink
     @Deprecated
     public PartialStringMessageSink(CoreSession session, MethodHandle methodHandle)
     {
-        this(session, new JettyMethodHandle(methodHandle));
+        this(session, JettyMethodHandle.from(methodHandle));
     }
 
     @Override

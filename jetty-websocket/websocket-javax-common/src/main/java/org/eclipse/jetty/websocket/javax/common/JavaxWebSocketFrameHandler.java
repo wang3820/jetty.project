@@ -361,7 +361,7 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
                 .bindTo(handler);
 
             JavaxWebSocketMessageMetadata metadata = new JavaxWebSocketMessageMetadata();
-            metadata.setMethodHandle(new JettyMethodHandle(methodHandle));
+            metadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
             byte basicType;
             // MessageHandler.Partial has no decoder support!
             if (byte[].class.isAssignableFrom(clazz))
@@ -410,7 +410,7 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
             if (PongMessage.class.isAssignableFrom(clazz))
             {
                 assertBasicTypeNotRegistered(OpCode.PONG, handler);
-                this.pongHandle = new JettyMethodHandle(methodHandle);
+                this.pongHandle = JettyMethodHandle.from(methodHandle);
                 registerMessageHandler(OpCode.PONG, clazz, handler, null);
                 return;
             }
@@ -422,7 +422,7 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
 
             // Create the message metadata specific to the MessageHandler type.
             JavaxWebSocketMessageMetadata metadata = new JavaxWebSocketMessageMetadata();
-            metadata.setMethodHandle(new JettyMethodHandle(methodHandle));
+            metadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
             byte basicType;
             if (registeredDecoder.implementsInterface(Decoder.Binary.class))
             {

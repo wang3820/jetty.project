@@ -14,65 +14,33 @@
 package org.eclipse.jetty.websocket.core.internal.util;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 
-public class JettyMethodHandle
+/**
+ * Jetty interface for managing {@link MethodHandle}s.
+ *
+ * This differs from {@link MethodHandle}s that any calls the methods such as {@link #bindTo(Object)}
+ * will change the instance of {@link JettyMethodHandle} it is called on.
+ */
+public interface JettyMethodHandle
 {
-    public static JettyMethodHandle from(MethodHandle methodHandle)
+    static JettyMethodHandle from(MethodHandle methodHandle)
     {
         if (methodHandle == null)
             return null;
-        return new JettyMethodHandle(methodHandle);
+        return new NonBindingJettyMethodHandle(methodHandle);
     }
 
-    public MethodHandle _methodHandle;
+    Object invoke(Object... args) throws Throwable;
 
-    public JettyMethodHandle(MethodHandle methodHandle)
-    {
-        _methodHandle = methodHandle;
-    }
+    JettyMethodHandle bindTo(Object arg);
 
-    public static JettyMethodHandle filterReturnValue(JettyMethodHandle target, MethodHandle filter)
-    {
-        target._methodHandle = MethodHandles.filterReturnValue(target._methodHandle, filter);
-        return target;
-    }
+    JettyMethodHandle insertArguments(int idx, Object... vals);
 
-    public static JettyMethodHandle insertArguments(JettyMethodHandle retHandle, int idx, Object... vals)
-    {
-        retHandle._methodHandle = MethodHandles.insertArguments(retHandle._methodHandle, idx, vals);
-        return retHandle;
-    }
+    JettyMethodHandle filterReturnValue(MethodHandle filter);
 
-    public JettyMethodHandle changeReturnType(Class<Object> objectClass)
-    {
-        _methodHandle = _methodHandle.asType(_methodHandle.type().changeReturnType(objectClass));
-        return this;
-    }
+    JettyMethodHandle changeReturnType(Class<Object> objectClass);
 
-    public Object invoke(Object... args) throws Throwable
-    {
-        return _methodHandle.invokeWithArguments(args);
-    }
+    Class<?> parameterType(int idx);
 
-    public JettyMethodHandle bindTo(Object arg)
-    {
-        _methodHandle = _methodHandle.bindTo(arg);
-        return this;
-    }
-
-    public Class<?> parameterType(int idx)
-    {
-        return _methodHandle.type().parameterType(idx);
-    }
-
-    public Class<?> returnType()
-    {
-        return _methodHandle.type().returnType();
-    }
-
-    public MethodHandle getWrappedMethodHandle()
-    {
-        return _methodHandle;
-    }
+    Class<?> returnType();
 }

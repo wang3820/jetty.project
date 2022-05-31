@@ -29,7 +29,7 @@ public class InputStreamMessageSink extends DispatchedMessageSink
     @Deprecated
     public InputStreamMessageSink(CoreSession session, MethodHandle methodHandle)
     {
-        this(session, new JettyMethodHandle(methodHandle));
+        this(session, JettyMethodHandle.from(methodHandle));
     }
 
     @Override

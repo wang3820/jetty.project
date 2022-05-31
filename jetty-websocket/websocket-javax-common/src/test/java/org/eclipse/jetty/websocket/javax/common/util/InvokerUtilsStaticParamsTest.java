@@ -61,7 +61,7 @@ public class InvokerUtilsStaticParamsTest
     private JettyMethodHandle getMethodHandle(Method method, String[] namedVariables, InvokerUtils.Arg... args)
     {
         MethodHandle methodHandle = InvokerUtils.mutatedInvoker(lookup, Foo.class, method, new NameParamIdentifier(), namedVariables, args);
-        return new JettyMethodHandle(methodHandle);
+        return JettyMethodHandle.from(methodHandle);
     }
 
     @Test
