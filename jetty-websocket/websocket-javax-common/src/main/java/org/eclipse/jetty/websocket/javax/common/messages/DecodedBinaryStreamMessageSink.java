@@ -39,7 +39,8 @@ public class DecodedBinaryStreamMessageSink<T> extends AbstractDecodedMessageSin
     @Override
     MessageSink newMessageSink(CoreSession coreSession)
     {
-        JettyMethodHandle methodHandle = new AbstractJettyMethodHandle(){
+        JettyMethodHandle methodHandle = new AbstractJettyMethodHandle()
+        {
             @Override
             public Object invoke(Object... args)
             {

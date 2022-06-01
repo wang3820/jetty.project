@@ -41,7 +41,8 @@ public class DecodedTextMessageSink<T> extends AbstractDecodedMessageSink.Basic<
     @Override
     MessageSink newMessageSink(CoreSession coreSession)
     {
-        JettyMethodHandle methodHandle = new AbstractJettyMethodHandle(){
+        JettyMethodHandle methodHandle = new AbstractJettyMethodHandle()
+        {
             @Override
             public Object invoke(Object... args)
             {
