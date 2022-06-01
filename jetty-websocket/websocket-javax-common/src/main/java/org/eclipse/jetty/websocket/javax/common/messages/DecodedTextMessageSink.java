@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty.websocket.javax.common.messages;
 
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.WrongMethodTypeException;
 import java.util.List;
 import javax.websocket.CloseReason;
@@ -37,12 +36,6 @@ public class DecodedTextMessageSink<T> extends AbstractDecodedMessageSink.Basic<
     public DecodedTextMessageSink(CoreSession session, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
     {
         super(session, methodHandle, decoders);
-    }
-
-    @Deprecated
-    public DecodedTextMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
-    {
-        super(session, JettyMethodHandle.from(methodHandle), decoders);
     }
 
     @Override

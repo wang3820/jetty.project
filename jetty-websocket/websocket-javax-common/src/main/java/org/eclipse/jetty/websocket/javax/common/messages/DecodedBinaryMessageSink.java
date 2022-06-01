@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty.websocket.javax.common.messages;
 
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.WrongMethodTypeException;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -38,12 +37,6 @@ public class DecodedBinaryMessageSink<T> extends AbstractDecodedMessageSink.Basi
     public DecodedBinaryMessageSink(CoreSession session, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
     {
         super(session, methodHandle, decoders);
-    }
-
-    @Deprecated
-    public DecodedBinaryMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
-    {
-        super(session, JettyMethodHandle.from(methodHandle), decoders);
     }
 
     @Override

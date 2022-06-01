@@ -15,7 +15,6 @@ package org.eclipse.jetty.websocket.javax.common.messages;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.WrongMethodTypeException;
 import java.util.List;
 import javax.websocket.CloseReason;
@@ -35,12 +34,6 @@ public class DecodedBinaryStreamMessageSink<T> extends AbstractDecodedMessageSin
     public DecodedBinaryStreamMessageSink(CoreSession session, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
     {
         super(session, methodHandle, decoders);
-    }
-
-    @Deprecated
-    public DecodedBinaryStreamMessageSink(CoreSession session, MethodHandle methodHandle, List<RegisteredDecoder> decoders)
-    {
-        super(session, JettyMethodHandle.from(methodHandle), decoders);
     }
 
     @Override
