@@ -253,7 +253,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
 
     protected JavaxWebSocketFrameHandlerMetadata createEndpointMetadata(EndpointConfig endpointConfig)
     {
-        JavaxWebSocketFrameHandlerMetadata metadata = new JavaxWebSocketFrameHandlerMetadata(endpointConfig, container.getWebSocketComponents());
+        JavaxWebSocketFrameHandlerMetadata metadata = new JavaxWebSocketFrameHandlerMetadata(endpointConfig, components);
         MethodHandles.Lookup lookup = getServerMethodHandleLookup();
 
         Method openMethod = ReflectUtils.findMethod(Endpoint.class, "onOpen", Session.class, EndpointConfig.class);
@@ -533,49 +533,49 @@ public abstract class JavaxWebSocketFrameHandlerFactory
             {
                 if (String.class.isAssignableFrom(type))
                 {
-                    retHandle = retHandle.insertArguments(IDX, strValue);
+                    retHandle = retHandle.bindTo(strValue, IDX);
                 }
                 else if (Integer.class.isAssignableFrom(type) || Integer.TYPE.isAssignableFrom(type))
                 {
                     Integer intValue = Integer.parseInt(strValue);
-                    retHandle = retHandle.insertArguments(IDX, intValue);
+                    retHandle = retHandle.bindTo(intValue, IDX);
                 }
                 else if (Long.class.isAssignableFrom(type) || Long.TYPE.isAssignableFrom(type))
                 {
                     Long longValue = Long.parseLong(strValue);
-                    retHandle = retHandle.insertArguments(IDX, longValue);
+                    retHandle = retHandle.bindTo(longValue, IDX);
                 }
                 else if (Short.class.isAssignableFrom(type) || Short.TYPE.isAssignableFrom(type))
                 {
                     Short shortValue = Short.parseShort(strValue);
-                    retHandle = retHandle.insertArguments(IDX, shortValue);
+                    retHandle = retHandle.bindTo(shortValue, IDX);
                 }
                 else if (Float.class.isAssignableFrom(type) || Float.TYPE.isAssignableFrom(type))
                 {
                     Float floatValue = Float.parseFloat(strValue);
-                    retHandle = retHandle.insertArguments(IDX, floatValue);
+                    retHandle = retHandle.bindTo(floatValue, IDX);
                 }
                 else if (Double.class.isAssignableFrom(type) || Double.TYPE.isAssignableFrom(type))
                 {
                     Double doubleValue = Double.parseDouble(strValue);
-                    retHandle = retHandle.insertArguments(IDX, doubleValue);
+                    retHandle = retHandle.bindTo(doubleValue, IDX);
                 }
                 else if (Boolean.class.isAssignableFrom(type) || Boolean.TYPE.isAssignableFrom(type))
                 {
                     Boolean boolValue = Boolean.parseBoolean(strValue);
-                    retHandle = retHandle.insertArguments(IDX, boolValue);
+                    retHandle = retHandle.bindTo(boolValue, IDX);
                 }
                 else if (Character.class.isAssignableFrom(type) || Character.TYPE.isAssignableFrom(type))
                 {
                     if (strValue.length() != 1)
                         throw new IllegalArgumentException("Invalid Size");
                     Character charValue = strValue.charAt(0);
-                    retHandle = retHandle.insertArguments(IDX, charValue);
+                    retHandle = retHandle.bindTo(charValue, IDX);
                 }
                 else if (Byte.class.isAssignableFrom(type) || Byte.TYPE.isAssignableFrom(type))
                 {
                     Byte b = Byte.parseByte(strValue);
-                    retHandle = retHandle.insertArguments(IDX, b);
+                    retHandle = retHandle.bindTo(b, IDX);
                 }
                 else
                 {

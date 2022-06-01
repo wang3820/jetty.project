@@ -36,14 +36,14 @@ class NonBindingJettyMethodHandle implements JettyMethodHandle
 
     private int getInternalIndex(int idx)
     {
-        int index = -1;
+        int index = 0;
         for (int i = 0; i < _numParams; i++)
         {
-            if (!Boolean.TRUE.equals(_boundParams[i]))
+            if (_boundParams[i] != Boolean.TRUE)
             {
-                index += 1;
                 if (index == idx)
                     return i;
+                index++;
             }
         }
 
@@ -61,27 +61,28 @@ class NonBindingJettyMethodHandle implements JettyMethodHandle
     }
 
     @Override
-    public JettyMethodHandle bindTo(Object arg)
+    public JettyMethodHandle bindTo(Object arg, int idx)
     {
-        int internalIndex = getInternalIndex(0);
+        int internalIndex = getInternalIndex(idx);
         _parameters[internalIndex] = arg;
         _boundParams[internalIndex] = true;
         return this;
     }
 
     @Override
-    public JettyMethodHandle insertArguments(int idx, Object... vals)
+    public JettyMethodHandle bindTo(Object arg)
     {
-        return insertArguments(true, idx, vals);
+        return bindTo(arg, 0);
     }
 
+    @SuppressWarnings({"UnusedReturnValue", "SameParameterValue"})
     private JettyMethodHandle insertArguments(boolean bind, int idx, Object... args)
     {
         int index = 0;
         int argsIndex = 0;
         for (int i = 0; i < _numParams; i++)
         {
-            if (!Boolean.TRUE.equals(_boundParams[i]))
+            if (_boundParams[i] != Boolean.TRUE)
             {
                 if (index >= idx && argsIndex < args.length)
                 {
@@ -99,6 +100,8 @@ class NonBindingJettyMethodHandle implements JettyMethodHandle
 
         if (argsIndex < args.length)
             throw new WrongMethodTypeException(String.format("Expected %s params but had %s", args.length, argsIndex + 1));
+        if (index != argsIndex)
+            throw new WrongMethodTypeException(String.format("Expected %s params but had %s", index + 1, argsIndex + 1));
         return this;
     }
 

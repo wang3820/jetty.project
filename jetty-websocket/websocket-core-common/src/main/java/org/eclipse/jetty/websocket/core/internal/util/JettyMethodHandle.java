@@ -34,7 +34,7 @@ public interface JettyMethodHandle
 
     JettyMethodHandle bindTo(Object arg);
 
-    JettyMethodHandle insertArguments(int idx, Object... vals);
+    JettyMethodHandle bindTo(Object arg, int idx);
 
     JettyMethodHandle filterReturnValue(MethodHandle filter);
 

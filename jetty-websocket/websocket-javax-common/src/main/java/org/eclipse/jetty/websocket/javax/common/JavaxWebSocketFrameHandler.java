@@ -13,8 +13,6 @@
 
 package org.eclipse.jetty.websocket.javax.common;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -353,117 +351,88 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
 
     public <T> void addMessageHandler(Class<T> clazz, MessageHandler.Partial<T> handler)
     {
-        try
+        JavaxWebSocketMessageMetadata metadata = new JavaxWebSocketMessageMetadata();
+        metadata.setMethodHandle(new JavaxMessagePartialMethodHandle<>(handler));
+        byte basicType;
+        // MessageHandler.Partial has no decoder support!
+        if (byte[].class.isAssignableFrom(clazz))
         {
-            // TODO: this is going to be different method handle for every time a MessageHandler is added.
-            MethodHandle methodHandle = JavaxWebSocketFrameHandlerFactory.getServerMethodHandleLookup()
-                .findVirtual(MessageHandler.Partial.class, "onMessage", MethodType.methodType(void.class, Object.class, boolean.class))
-                .bindTo(handler);
+            basicType = OpCode.BINARY;
+            metadata.setSinkClass(PartialByteArrayMessageSink.class);
+        }
+        else if (ByteBuffer.class.isAssignableFrom(clazz))
+        {
+            basicType = OpCode.BINARY;
+            metadata.setSinkClass(PartialByteBufferMessageSink.class);
+        }
+        else if (String.class.isAssignableFrom(clazz))
+        {
+            basicType = OpCode.TEXT;
+            metadata.setSinkClass(PartialStringMessageSink.class);
+        }
+        else
+        {
+            throw new RuntimeException(
+                "Unable to add " + handler.getClass().getName() + " with type " + clazz + ": only supported types byte[], " + ByteBuffer.class.getName() +
+                    ", " + String.class.getName());
+        }
 
-            JavaxWebSocketMessageMetadata metadata = new JavaxWebSocketMessageMetadata();
-            metadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
-            byte basicType;
-            // MessageHandler.Partial has no decoder support!
-            if (byte[].class.isAssignableFrom(clazz))
-            {
-                basicType = OpCode.BINARY;
-                metadata.setSinkClass(PartialByteArrayMessageSink.class);
-            }
-            else if (ByteBuffer.class.isAssignableFrom(clazz))
-            {
-                basicType = OpCode.BINARY;
-                metadata.setSinkClass(PartialByteBufferMessageSink.class);
-            }
-            else if (String.class.isAssignableFrom(clazz))
-            {
-                basicType = OpCode.TEXT;
-                metadata.setSinkClass(PartialStringMessageSink.class);
-            }
-            else
-            {
-                throw new RuntimeException(
-                    "Unable to add " + handler.getClass().getName() + " with type " + clazz + ": only supported types byte[], " + ByteBuffer.class.getName() +
-                        ", " + String.class.getName());
-            }
-
-            // Register the Metadata as a MessageHandler.
-            registerMessageHandler(clazz, handler, basicType, metadata);
-        }
-        catch (NoSuchMethodException e)
-        {
-            throw new IllegalStateException("Unable to find method", e);
-        }
-        catch (IllegalAccessException e)
-        {
-            throw new IllegalStateException("Unable to access " + handler.getClass().getName(), e);
-        }
+        // Register the Metadata as a MessageHandler.
+        registerMessageHandler(clazz, handler, basicType, metadata);
     }
 
     public <T> void addMessageHandler(Class<T> clazz, MessageHandler.Whole<T> handler)
     {
-        try
+        JettyMethodHandle methodHandle = new JavaxMessageWholeMethodHandle<>(handler);
+
+        if (PongMessage.class.isAssignableFrom(clazz))
         {
-            MethodHandle methodHandle = JavaxWebSocketFrameHandlerFactory.getServerMethodHandleLookup()
-                .findVirtual(MessageHandler.Whole.class, "onMessage", MethodType.methodType(void.class, Object.class))
-                .bindTo(handler);
-
-            if (PongMessage.class.isAssignableFrom(clazz))
-            {
-                assertBasicTypeNotRegistered(OpCode.PONG, handler);
-                this.pongHandle = JettyMethodHandle.from(methodHandle);
-                registerMessageHandler(OpCode.PONG, clazz, handler, null);
-                return;
-            }
-
-            AvailableDecoders availableDecoders = session.getDecoders();
-            RegisteredDecoder registeredDecoder = availableDecoders.getFirstRegisteredDecoder(clazz);
-            if (registeredDecoder == null)
-                throw new IllegalStateException("Unable to find Decoder for type: " + clazz);
-
-            // Create the message metadata specific to the MessageHandler type.
-            JavaxWebSocketMessageMetadata metadata = new JavaxWebSocketMessageMetadata();
-            metadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
-            byte basicType;
-            if (registeredDecoder.implementsInterface(Decoder.Binary.class))
-            {
-                basicType = OpCode.BINARY;
-                metadata.setRegisteredDecoders(availableDecoders.getBinaryDecoders(clazz));
-                metadata.setSinkClass(DecodedBinaryMessageSink.class);
-            }
-            else if (registeredDecoder.implementsInterface(Decoder.BinaryStream.class))
-            {
-                basicType = OpCode.BINARY;
-                metadata.setRegisteredDecoders(availableDecoders.getBinaryStreamDecoders(clazz));
-                metadata.setSinkClass(DecodedBinaryStreamMessageSink.class);
-            }
-            else if (registeredDecoder.implementsInterface(Decoder.Text.class))
-            {
-                basicType = OpCode.TEXT;
-                metadata.setRegisteredDecoders(availableDecoders.getTextDecoders(clazz));
-                metadata.setSinkClass(DecodedTextMessageSink.class);
-            }
-            else if (registeredDecoder.implementsInterface(Decoder.TextStream.class))
-            {
-                basicType = OpCode.TEXT;
-                metadata.setRegisteredDecoders(availableDecoders.getTextStreamDecoders(clazz));
-                metadata.setSinkClass(DecodedTextStreamMessageSink.class);
-            }
-            else
-            {
-                throw new RuntimeException("Unable to add " + handler.getClass().getName() + ": type " + clazz + " is unrecognized by declared decoders");
-            }
-
-            // Register the Metadata as a MessageHandler.
-            registerMessageHandler(clazz, handler, basicType, metadata);
+            assertBasicTypeNotRegistered(OpCode.PONG, handler);
+            this.pongHandle = methodHandle;
+            registerMessageHandler(OpCode.PONG, clazz, handler, null);
+            return;
         }
-        catch (NoSuchMethodException e)
+
+        AvailableDecoders availableDecoders = session.getDecoders();
+        RegisteredDecoder registeredDecoder = availableDecoders.getFirstRegisteredDecoder(clazz);
+        if (registeredDecoder == null)
+            throw new IllegalStateException("Unable to find Decoder for type: " + clazz);
+
+        // Create the message metadata specific to the MessageHandler type.
+        JavaxWebSocketMessageMetadata metadata = new JavaxWebSocketMessageMetadata();
+        metadata.setMethodHandle(methodHandle);
+        byte basicType;
+        if (registeredDecoder.implementsInterface(Decoder.Binary.class))
         {
-            throw new IllegalStateException("Unable to find method", e);
+            basicType = OpCode.BINARY;
+            metadata.setRegisteredDecoders(availableDecoders.getBinaryDecoders(clazz));
+            metadata.setSinkClass(DecodedBinaryMessageSink.class);
         }
-        catch (IllegalAccessException e)
+        else if (registeredDecoder.implementsInterface(Decoder.BinaryStream.class))
         {
-            throw new IllegalStateException("Unable to access " + handler.getClass().getName(), e);
+            basicType = OpCode.BINARY;
+            metadata.setRegisteredDecoders(availableDecoders.getBinaryStreamDecoders(clazz));
+            metadata.setSinkClass(DecodedBinaryStreamMessageSink.class);
         }
+        else if (registeredDecoder.implementsInterface(Decoder.Text.class))
+        {
+            basicType = OpCode.TEXT;
+            metadata.setRegisteredDecoders(availableDecoders.getTextDecoders(clazz));
+            metadata.setSinkClass(DecodedTextMessageSink.class);
+        }
+        else if (registeredDecoder.implementsInterface(Decoder.TextStream.class))
+        {
+            basicType = OpCode.TEXT;
+            metadata.setRegisteredDecoders(availableDecoders.getTextStreamDecoders(clazz));
+            metadata.setSinkClass(DecodedTextStreamMessageSink.class);
+        }
+        else
+        {
+            throw new RuntimeException("Unable to add " + handler.getClass().getName() + ": type " + clazz + " is unrecognized by declared decoders");
+        }
+
+        // Register the Metadata as a MessageHandler.
+        registerMessageHandler(clazz, handler, basicType, metadata);
     }
 
     private void assertBasicTypeNotRegistered(byte basicWebSocketType, MessageHandler replacement)

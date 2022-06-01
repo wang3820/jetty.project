@@ -26,27 +26,6 @@ class BindingJettyMethodHandle implements JettyMethodHandle
     }
 
     @Override
-    public BindingJettyMethodHandle filterReturnValue(MethodHandle filter)
-    {
-        _methodHandle = MethodHandles.filterReturnValue(_methodHandle, filter);
-        return this;
-    }
-
-    @Override
-    public BindingJettyMethodHandle insertArguments(int idx, Object... vals)
-    {
-        _methodHandle = MethodHandles.insertArguments(_methodHandle, idx, vals);
-        return this;
-    }
-
-    @Override
-    public BindingJettyMethodHandle changeReturnType(Class<Object> objectClass)
-    {
-        _methodHandle = _methodHandle.asType(_methodHandle.type().changeReturnType(objectClass));
-        return this;
-    }
-
-    @Override
     public Object invoke(Object... args) throws Throwable
     {
         return _methodHandle.invokeWithArguments(args);
@@ -56,6 +35,27 @@ class BindingJettyMethodHandle implements JettyMethodHandle
     public BindingJettyMethodHandle bindTo(Object arg)
     {
         _methodHandle = _methodHandle.bindTo(arg);
+        return this;
+    }
+
+    @Override
+    public JettyMethodHandle bindTo(Object arg, int idx)
+    {
+        _methodHandle = MethodHandles.insertArguments(_methodHandle, idx, arg);
+        return this;
+    }
+
+    @Override
+    public BindingJettyMethodHandle filterReturnValue(MethodHandle filter)
+    {
+        _methodHandle = MethodHandles.filterReturnValue(_methodHandle, filter);
+        return this;
+    }
+
+    @Override
+    public BindingJettyMethodHandle changeReturnType(Class<Object> objectClass)
+    {
+        _methodHandle = _methodHandle.asType(_methodHandle.type().changeReturnType(objectClass));
         return this;
     }
 
