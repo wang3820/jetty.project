@@ -46,7 +46,7 @@ import org.eclipse.jetty.websocket.core.internal.messages.PartialByteArrayMessag
 import org.eclipse.jetty.websocket.core.internal.messages.PartialByteBufferMessageSink;
 import org.eclipse.jetty.websocket.core.internal.messages.PartialStringMessageSink;
 import org.eclipse.jetty.websocket.core.internal.util.InvokerUtils;
-import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
+import org.eclipse.jetty.websocket.core.internal.util.MethodHolder;
 import org.eclipse.jetty.websocket.core.internal.util.ReflectUtils;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 import org.eclipse.jetty.websocket.javax.common.messages.AbstractDecodedMessageSink;
@@ -136,10 +136,10 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (metadata == null)
             return null;
 
-        JettyMethodHandle openHandle = JettyMethodHandle.from(metadata.getOpenHandle());
-        JettyMethodHandle closeHandle = JettyMethodHandle.from(metadata.getCloseHandle());
-        JettyMethodHandle errorHandle = JettyMethodHandle.from(metadata.getErrorHandle());
-        JettyMethodHandle pongHandle = JettyMethodHandle.from(metadata.getPongHandle());
+        MethodHolder openHandle = MethodHolder.from(metadata.getOpenHandle());
+        MethodHolder closeHandle = MethodHolder.from(metadata.getCloseHandle());
+        MethodHolder errorHandle = MethodHolder.from(metadata.getErrorHandle());
+        MethodHolder pongHandle = MethodHolder.from(metadata.getPongHandle());
 
         JavaxWebSocketMessageMetadata textMetadata = JavaxWebSocketMessageMetadata.copyOf(metadata.getTextMetadata());
         JavaxWebSocketMessageMetadata binaryMetadata = JavaxWebSocketMessageMetadata.copyOf(metadata.getBinaryMetadata());
@@ -157,9 +157,9 @@ public abstract class JavaxWebSocketFrameHandlerFactory
             pongHandle = bindTemplateVariables(pongHandle, namedVariables, pathParams);
 
             if (textMetadata != null)
-                textMetadata.setMethodHandle(bindTemplateVariables(textMetadata.getMethodHandle(), namedVariables, pathParams));
+                textMetadata.setMethodHolder(bindTemplateVariables(textMetadata.getMethodHolder(), namedVariables, pathParams));
             if (binaryMetadata != null)
-                binaryMetadata.setMethodHandle(bindTemplateVariables(binaryMetadata.getMethodHandle(), namedVariables, pathParams));
+                binaryMetadata.setMethodHolder(bindTemplateVariables(binaryMetadata.getMethodHolder(), namedVariables, pathParams));
         }
 
         openHandle = InvokerUtils.bindTo(openHandle, endpoint);
@@ -191,15 +191,15 @@ public abstract class JavaxWebSocketFrameHandlerFactory
             if (AbstractDecodedMessageSink.class.isAssignableFrom(msgMetadata.getSinkClass()))
             {
                 MethodHandle ctorHandle = lookup.findConstructor(msgMetadata.getSinkClass(),
-                    MethodType.methodType(void.class, CoreSession.class, JettyMethodHandle.class, List.class));
+                    MethodType.methodType(void.class, CoreSession.class, MethodHolder.class, List.class));
                 List<RegisteredDecoder> registeredDecoders = msgMetadata.getRegisteredDecoders();
-                return (MessageSink)ctorHandle.invoke(session.getCoreSession(), msgMetadata.getMethodHandle(), registeredDecoders);
+                return (MessageSink)ctorHandle.invoke(session.getCoreSession(), msgMetadata.getMethodHolder(), registeredDecoders);
             }
             else
             {
                 MethodHandle ctorHandle = lookup.findConstructor(msgMetadata.getSinkClass(),
-                    MethodType.methodType(void.class, CoreSession.class, JettyMethodHandle.class));
-                return (MessageSink)ctorHandle.invoke(session.getCoreSession(), msgMetadata.getMethodHandle());
+                    MethodType.methodType(void.class, CoreSession.class, MethodHolder.class));
+                return (MessageSink)ctorHandle.invoke(session.getCoreSession(), msgMetadata.getMethodHolder());
             }
         }
         catch (NoSuchMethodException e)
@@ -220,7 +220,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         }
     }
 
-    public static JettyMethodHandle wrapNonVoidReturnType(JettyMethodHandle handle, JavaxWebSocketSession session)
+    public static MethodHolder wrapNonVoidReturnType(MethodHolder handle, JavaxWebSocketSession session)
     {
         if (handle == null)
             return null;
@@ -361,7 +361,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (methodHandle != null)
         {
             msgMetadata.setSinkClass(PartialStringMessageSink.class);
-            msgMetadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
+            msgMetadata.setMethodHolder(MethodHolder.from(methodHandle));
             metadata.setTextMetadata(msgMetadata, onMsg);
             return true;
         }
@@ -371,7 +371,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (methodHandle != null)
         {
             msgMetadata.setSinkClass(PartialByteBufferMessageSink.class);
-            msgMetadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
+            msgMetadata.setMethodHolder(MethodHolder.from(methodHandle));
             metadata.setBinaryMetadata(msgMetadata, onMsg);
             return true;
         }
@@ -381,7 +381,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (methodHandle != null)
         {
             msgMetadata.setSinkClass(PartialByteArrayMessageSink.class);
-            msgMetadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
+            msgMetadata.setMethodHolder(MethodHolder.from(methodHandle));
             metadata.setBinaryMetadata(msgMetadata, onMsg);
             return true;
         }
@@ -424,7 +424,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
                 objectType = decoder.objectType;
         }
         MethodHandle methodHandle = getMethodHandle.apply(getArgsFor(objectType));
-        msgMetadata.setMethodHandle(JettyMethodHandle.from(methodHandle));
+        msgMetadata.setMethodHolder(MethodHolder.from(methodHandle));
 
         // Set the sinkClass and then set the MessageMetadata on the FrameHandlerMetadata
         if (interfaceType.equals(Decoder.Text.class))
@@ -509,7 +509,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
      * have been statically assigned a converted value (and removed from the resulting {@link MethodHandle#type()}, or null if
      * no {@code target} MethodHandle was provided.
      */
-    public static JettyMethodHandle bindTemplateVariables(JettyMethodHandle target, String[] namedVariables, Map<String, String> templateValues)
+    public static MethodHolder bindTemplateVariables(MethodHolder target, String[] namedVariables, Map<String, String> templateValues)
     {
         if (target == null)
         {
@@ -518,7 +518,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
 
         final int IDX = 1;
 
-        JettyMethodHandle retHandle = target;
+        MethodHolder retHandle = target;
 
         if ((templateValues == null) || (templateValues.isEmpty()))
         {

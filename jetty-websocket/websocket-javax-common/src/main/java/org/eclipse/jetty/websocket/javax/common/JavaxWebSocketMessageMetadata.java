@@ -16,12 +16,12 @@ package org.eclipse.jetty.websocket.javax.common;
 import java.util.List;
 
 import org.eclipse.jetty.websocket.core.internal.messages.MessageSink;
-import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
+import org.eclipse.jetty.websocket.core.internal.util.MethodHolder;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 
 public class JavaxWebSocketMessageMetadata
 {
-    private JettyMethodHandle methodHandle;
+    private MethodHolder methodHolder;
     private Class<? extends MessageSink> sinkClass;
     private List<RegisteredDecoder> registeredDecoders;
 
@@ -34,7 +34,7 @@ public class JavaxWebSocketMessageMetadata
             return null;
 
         JavaxWebSocketMessageMetadata copy = new JavaxWebSocketMessageMetadata();
-        copy.methodHandle = metadata.methodHandle;
+        copy.methodHolder = metadata.methodHolder;
         copy.sinkClass = metadata.sinkClass;
         copy.registeredDecoders = metadata.registeredDecoders;
         copy.maxMessageSize = metadata.maxMessageSize;
@@ -58,14 +58,14 @@ public class JavaxWebSocketMessageMetadata
         this.maxMessageSizeSet = true;
     }
 
-    public JettyMethodHandle getMethodHandle()
+    public MethodHolder getMethodHolder()
     {
-        return methodHandle;
+        return methodHolder;
     }
 
-    public void setMethodHandle(JettyMethodHandle methodHandle)
+    public void setMethodHolder(MethodHolder methodHolder)
     {
-        this.methodHandle = methodHandle;
+        this.methodHolder = methodHolder;
     }
 
     public Class<? extends MessageSink> getSinkClass()

@@ -42,7 +42,7 @@ import org.eclipse.jetty.websocket.core.exception.WebSocketException;
 import org.eclipse.jetty.websocket.core.exception.WebSocketTimeoutException;
 import org.eclipse.jetty.websocket.core.internal.messages.MessageSink;
 import org.eclipse.jetty.websocket.core.internal.util.InvokerUtils;
-import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
+import org.eclipse.jetty.websocket.core.internal.util.MethodHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,16 +62,16 @@ public class JettyWebSocketFrameHandler implements FrameHandler
     private final Object endpointInstance;
     private final BatchMode batchMode;
     private final AtomicBoolean closeNotified = new AtomicBoolean();
-    private JettyMethodHandle openHandle;
-    private JettyMethodHandle closeHandle;
-    private JettyMethodHandle errorHandle;
-    private JettyMethodHandle textHandle;
+    private MethodHolder openHandle;
+    private MethodHolder closeHandle;
+    private MethodHolder errorHandle;
+    private MethodHolder textHandle;
     private final Class<? extends MessageSink> textSinkClass;
-    private JettyMethodHandle binaryHandle;
+    private MethodHolder binaryHandle;
     private final Class<? extends MessageSink> binarySinkClass;
-    private JettyMethodHandle frameHandle;
-    private JettyMethodHandle pingHandle;
-    private JettyMethodHandle pongHandle;
+    private MethodHolder frameHandle;
+    private MethodHolder pingHandle;
+    private MethodHolder pongHandle;
     private UpgradeRequest upgradeRequest;
     private UpgradeResponse upgradeResponse;
 
@@ -86,12 +86,12 @@ public class JettyWebSocketFrameHandler implements FrameHandler
 
     public JettyWebSocketFrameHandler(WebSocketContainer container,
                                       Object endpointInstance,
-                                      JettyMethodHandle openHandle, JettyMethodHandle closeHandle, JettyMethodHandle errorHandle,
-                                      JettyMethodHandle textHandle, JettyMethodHandle binaryHandle,
+                                      MethodHolder openHandle, MethodHolder closeHandle, MethodHolder errorHandle,
+                                      MethodHolder textHandle, MethodHolder binaryHandle,
                                       Class<? extends MessageSink> textSinkClass,
                                       Class<? extends MessageSink> binarySinkClass,
-                                      JettyMethodHandle frameHandle,
-                                      JettyMethodHandle pingHandle, JettyMethodHandle pongHandle,
+                                      MethodHolder frameHandle,
+                                      MethodHolder pingHandle, MethodHolder pongHandle,
                                       BatchMode batchMode,
                                       Configuration.Customizer customizer)
     {

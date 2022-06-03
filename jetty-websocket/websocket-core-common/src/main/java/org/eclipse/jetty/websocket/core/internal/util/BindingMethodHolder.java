@@ -16,11 +16,11 @@ package org.eclipse.jetty.websocket.core.internal.util;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 
-class BindingJettyMethodHandle implements JettyMethodHandle
+class BindingMethodHolder implements MethodHolder
 {
     public MethodHandle _methodHandle;
 
-    BindingJettyMethodHandle(MethodHandle methodHandle)
+    public BindingMethodHolder(MethodHandle methodHandle)
     {
         _methodHandle = methodHandle;
     }
@@ -32,28 +32,28 @@ class BindingJettyMethodHandle implements JettyMethodHandle
     }
 
     @Override
-    public BindingJettyMethodHandle bindTo(Object arg)
+    public BindingMethodHolder bindTo(Object arg)
     {
         _methodHandle = _methodHandle.bindTo(arg);
         return this;
     }
 
     @Override
-    public JettyMethodHandle bindTo(Object arg, int idx)
+    public MethodHolder bindTo(Object arg, int idx)
     {
         _methodHandle = MethodHandles.insertArguments(_methodHandle, idx, arg);
         return this;
     }
 
     @Override
-    public BindingJettyMethodHandle filterReturnValue(MethodHandle filter)
+    public BindingMethodHolder filterReturnValue(MethodHandle filter)
     {
         _methodHandle = MethodHandles.filterReturnValue(_methodHandle, filter);
         return this;
     }
 
     @Override
-    public BindingJettyMethodHandle changeReturnType(Class<Object> objectClass)
+    public BindingMethodHolder changeReturnType(Class<Object> objectClass)
     {
         _methodHandle = _methodHandle.asType(_methodHandle.type().changeReturnType(objectClass));
         return this;

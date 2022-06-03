@@ -43,7 +43,7 @@ import org.eclipse.jetty.websocket.core.internal.messages.PartialByteArrayMessag
 import org.eclipse.jetty.websocket.core.internal.messages.PartialByteBufferMessageSink;
 import org.eclipse.jetty.websocket.core.internal.messages.PartialStringMessageSink;
 import org.eclipse.jetty.websocket.core.internal.util.InvokerUtils;
-import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
+import org.eclipse.jetty.websocket.core.internal.util.MethodHolder;
 import org.eclipse.jetty.websocket.javax.common.decoders.AvailableDecoders;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 import org.eclipse.jetty.websocket.javax.common.messages.DecodedBinaryMessageSink;
@@ -61,10 +61,10 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
     private final Object endpointInstance;
     private final AtomicBoolean closeNotified = new AtomicBoolean();
 
-    private JettyMethodHandle openHandle;
-    private JettyMethodHandle closeHandle;
-    private JettyMethodHandle errorHandle;
-    private JettyMethodHandle pongHandle;
+    private MethodHolder openHandle;
+    private MethodHolder closeHandle;
+    private MethodHolder errorHandle;
+    private MethodHolder pongHandle;
     private JavaxWebSocketMessageMetadata textMetadata;
     private JavaxWebSocketMessageMetadata binaryMetadata;
     private final UpgradeRequest upgradeRequest;
@@ -80,10 +80,10 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
     public JavaxWebSocketFrameHandler(JavaxWebSocketContainer container,
                                       UpgradeRequest upgradeRequest,
                                       Object endpointInstance,
-                                      JettyMethodHandle openHandle, JettyMethodHandle closeHandle, JettyMethodHandle errorHandle,
+                                      MethodHolder openHandle, MethodHolder closeHandle, MethodHolder errorHandle,
                                       JavaxWebSocketMessageMetadata textMetadata,
                                       JavaxWebSocketMessageMetadata binaryMetadata,
-                                      JettyMethodHandle pongHandle,
+                                      MethodHolder pongHandle,
                                       EndpointConfig endpointConfig)
     {
         this.logger = LoggerFactory.getLogger(endpointInstance.getClass());
@@ -146,10 +146,10 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
                 if (actualTextMetadata.isMaxMessageSizeSet())
                     session.setMaxTextMessageBufferSize(actualTextMetadata.getMaxMessageSize());
 
-                JettyMethodHandle methodHandle = actualTextMetadata.getMethodHandle();
-                methodHandle = InvokerUtils.bindTo(methodHandle, endpointInstance, endpointConfig, session);
-                methodHandle = JavaxWebSocketFrameHandlerFactory.wrapNonVoidReturnType(methodHandle, session);
-                actualTextMetadata.setMethodHandle(methodHandle);
+                MethodHolder methodHolder = actualTextMetadata.getMethodHolder();
+                methodHolder = InvokerUtils.bindTo(methodHolder, endpointInstance, endpointConfig, session);
+                methodHolder = JavaxWebSocketFrameHandlerFactory.wrapNonVoidReturnType(methodHolder, session);
+                actualTextMetadata.setMethodHolder(methodHolder);
 
                 textSink = JavaxWebSocketFrameHandlerFactory.createMessageSink(session, actualTextMetadata);
                 textMetadata = actualTextMetadata;
@@ -161,10 +161,10 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
                 if (actualBinaryMetadata.isMaxMessageSizeSet())
                     session.setMaxBinaryMessageBufferSize(actualBinaryMetadata.getMaxMessageSize());
 
-                JettyMethodHandle methodHandle = actualBinaryMetadata.getMethodHandle();
-                methodHandle = InvokerUtils.bindTo(methodHandle, endpointInstance, endpointConfig, session);
-                methodHandle = JavaxWebSocketFrameHandlerFactory.wrapNonVoidReturnType(methodHandle, session);
-                actualBinaryMetadata.setMethodHandle(methodHandle);
+                MethodHolder methodHolder = actualBinaryMetadata.getMethodHolder();
+                methodHolder = InvokerUtils.bindTo(methodHolder, endpointInstance, endpointConfig, session);
+                methodHolder = JavaxWebSocketFrameHandlerFactory.wrapNonVoidReturnType(methodHolder, session);
+                actualBinaryMetadata.setMethodHolder(methodHolder);
 
                 binarySink = JavaxWebSocketFrameHandlerFactory.createMessageSink(session, actualBinaryMetadata);
                 binaryMetadata = actualBinaryMetadata;
@@ -352,7 +352,7 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
     public <T> void addMessageHandler(Class<T> clazz, MessageHandler.Partial<T> handler)
     {
         JavaxWebSocketMessageMetadata metadata = new JavaxWebSocketMessageMetadata();
-        metadata.setMethodHandle(new JavaxMessagePartialMethodHandle<>(handler));
+        metadata.setMethodHolder(new JavaxMessagePartialMethodHolder<>(handler));
         byte basicType;
         // MessageHandler.Partial has no decoder support!
         if (byte[].class.isAssignableFrom(clazz))
@@ -383,12 +383,12 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
 
     public <T> void addMessageHandler(Class<T> clazz, MessageHandler.Whole<T> handler)
     {
-        JettyMethodHandle methodHandle = new JavaxMessageWholeMethodHandle<>(handler);
+        MethodHolder methodHolder = new JavaxMessageWholeMethodHolder<>(handler);
 
         if (PongMessage.class.isAssignableFrom(clazz))
         {
             assertBasicTypeNotRegistered(OpCode.PONG, handler);
-            this.pongHandle = methodHandle;
+            this.pongHandle = methodHolder;
             registerMessageHandler(OpCode.PONG, clazz, handler, null);
             return;
         }
@@ -400,7 +400,7 @@ public class JavaxWebSocketFrameHandler implements FrameHandler
 
         // Create the message metadata specific to the MessageHandler type.
         JavaxWebSocketMessageMetadata metadata = new JavaxWebSocketMessageMetadata();
-        metadata.setMethodHandle(methodHandle);
+        metadata.setMethodHolder(methodHolder);
         byte basicType;
         if (registeredDecoder.implementsInterface(Decoder.Binary.class))
         {

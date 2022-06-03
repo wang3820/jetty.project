@@ -17,13 +17,13 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.WrongMethodTypeException;
 import javax.websocket.MessageHandler;
 
-import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
+import org.eclipse.jetty.websocket.core.internal.util.MethodHolder;
 
-class JavaxMessageWholeMethodHandle<T> implements JettyMethodHandle
+class JavaxMessageWholeMethodHolder<T> implements MethodHolder
 {
     private final MessageHandler.Whole<T> _messageHandler;
 
-    public JavaxMessageWholeMethodHandle(MessageHandler.Whole<T> messageHandler)
+    public JavaxMessageWholeMethodHolder(MessageHandler.Whole<T> messageHandler)
     {
         _messageHandler = messageHandler;
     }
@@ -39,25 +39,25 @@ class JavaxMessageWholeMethodHandle<T> implements JettyMethodHandle
     }
 
     @Override
-    public JettyMethodHandle bindTo(Object arg)
+    public MethodHolder bindTo(Object arg)
     {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public JettyMethodHandle bindTo(Object arg, int idx)
+    public MethodHolder bindTo(Object arg, int idx)
     {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public JettyMethodHandle filterReturnValue(MethodHandle filter)
+    public MethodHolder filterReturnValue(MethodHandle filter)
     {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public JettyMethodHandle changeReturnType(Class<Object> objectClass)
+    public MethodHolder changeReturnType(Class<Object> objectClass)
     {
         throw new UnsupportedOperationException();
     }

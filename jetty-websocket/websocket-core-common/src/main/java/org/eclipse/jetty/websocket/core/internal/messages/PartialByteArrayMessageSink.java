@@ -17,15 +17,15 @@ import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
-import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
+import org.eclipse.jetty.websocket.core.internal.util.MethodHolder;
 
 public class PartialByteArrayMessageSink extends AbstractMessageSink
 {
     private static final byte[] EMPTY_BUFFER = new byte[0];
 
-    public PartialByteArrayMessageSink(CoreSession session, JettyMethodHandle methodHandle)
+    public PartialByteArrayMessageSink(CoreSession session, MethodHolder methodHolder)
     {
-        super(session, methodHandle);
+        super(session, methodHolder);
     }
 
     @Override
@@ -36,7 +36,7 @@ public class PartialByteArrayMessageSink extends AbstractMessageSink
             if (frame.hasPayload() || frame.isFin())
             {
                 byte[] buffer = frame.hasPayload() ? BufferUtil.toArray(frame.getPayload()) : EMPTY_BUFFER;
-                methodHandle.invoke(buffer, frame.isFin());
+                methodHolder.invoke(buffer, frame.isFin());
             }
 
             callback.succeeded();

@@ -17,7 +17,11 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.WrongMethodTypeException;
 import java.util.Objects;
 
-class NonBindingJettyMethodHandle implements JettyMethodHandle
+/**
+ * This implementation of {@link MethodHolder} is not thread safe.
+ * Mutual exclusion should be used when calling {@link #invoke(Object...)}.
+ */
+class NonBindingMethodHolder implements MethodHolder
 {
     private final MethodHandle _methodHandle;
     private final Object[] _parameters;
@@ -26,7 +30,7 @@ class NonBindingJettyMethodHandle implements JettyMethodHandle
     private Class<Object> _returnType;
     private MethodHandle _returnFilter;
 
-    public NonBindingJettyMethodHandle(MethodHandle methodHandle)
+    public NonBindingMethodHolder(MethodHandle methodHandle)
     {
         _methodHandle = Objects.requireNonNull(methodHandle);
         _numParams = methodHandle.type().parameterCount();
@@ -61,7 +65,7 @@ class NonBindingJettyMethodHandle implements JettyMethodHandle
     }
 
     @Override
-    public JettyMethodHandle bindTo(Object arg, int idx)
+    public MethodHolder bindTo(Object arg, int idx)
     {
         int internalIndex = getInternalIndex(idx);
         _parameters[internalIndex] = arg;
@@ -70,13 +74,13 @@ class NonBindingJettyMethodHandle implements JettyMethodHandle
     }
 
     @Override
-    public JettyMethodHandle bindTo(Object arg)
+    public MethodHolder bindTo(Object arg)
     {
         return bindTo(arg, 0);
     }
 
     @SuppressWarnings({"UnusedReturnValue", "SameParameterValue"})
-    private JettyMethodHandle insertArguments(boolean bind, int idx, Object... args)
+    private MethodHolder insertArguments(boolean bind, int idx, Object... args)
     {
         int index = 0;
         int argsIndex = 0;
@@ -106,14 +110,14 @@ class NonBindingJettyMethodHandle implements JettyMethodHandle
     }
 
     @Override
-    public JettyMethodHandle filterReturnValue(MethodHandle filter)
+    public MethodHolder filterReturnValue(MethodHandle filter)
     {
         _returnFilter = filter;
         return this;
     }
 
     @Override
-    public JettyMethodHandle changeReturnType(Class<Object> objectClass)
+    public MethodHolder changeReturnType(Class<Object> objectClass)
     {
         _returnType = objectClass;
         return this;

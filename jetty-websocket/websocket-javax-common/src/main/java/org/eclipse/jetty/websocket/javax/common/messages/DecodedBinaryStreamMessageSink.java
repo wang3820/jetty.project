@@ -25,33 +25,28 @@ import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.exception.CloseException;
 import org.eclipse.jetty.websocket.core.internal.messages.InputStreamMessageSink;
 import org.eclipse.jetty.websocket.core.internal.messages.MessageSink;
-import org.eclipse.jetty.websocket.core.internal.util.AbstractJettyMethodHandle;
-import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
+import org.eclipse.jetty.websocket.core.internal.util.MethodHolder;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 
 public class DecodedBinaryStreamMessageSink<T> extends AbstractDecodedMessageSink.Stream<Decoder.BinaryStream<T>>
 {
-    public DecodedBinaryStreamMessageSink(CoreSession session, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
+    public DecodedBinaryStreamMessageSink(CoreSession session, MethodHolder methodHolder, List<RegisteredDecoder> decoders)
     {
-        super(session, methodHandle, decoders);
+        super(session, methodHolder, decoders);
     }
 
     @Override
     MessageSink newMessageSink(CoreSession coreSession)
     {
-        JettyMethodHandle methodHandle = new AbstractJettyMethodHandle()
+        MethodHolder methodHolder = args ->
         {
-            @Override
-            public Object invoke(Object... args)
-            {
-                if (args.length != 1)
-                    throw new WrongMethodTypeException(String.format("Expected %s params but had %s", 1, args.length));
-                onStreamStart((InputStream)args[0]);
-                return null;
-            }
+            if (args.length != 1)
+                throw new WrongMethodTypeException(String.format("Expected %s params but had %s", 1, args.length));
+            onStreamStart((InputStream)args[0]);
+            return null;
         };
 
-        return new InputStreamMessageSink(coreSession, methodHandle);
+        return new InputStreamMessageSink(coreSession, methodHolder);
     }
 
     public void onStreamStart(InputStream stream)

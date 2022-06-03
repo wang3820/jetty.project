@@ -23,7 +23,7 @@ import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
 import org.eclipse.jetty.websocket.core.exception.CloseException;
 import org.eclipse.jetty.websocket.core.internal.messages.MessageSink;
-import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
+import org.eclipse.jetty.websocket.core.internal.util.MethodHolder;
 import org.eclipse.jetty.websocket.javax.common.decoders.RegisteredDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,12 +32,12 @@ public abstract class AbstractDecodedMessageSink implements MessageSink
 {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractDecodedMessageSink.class);
 
-    private final JettyMethodHandle _methodHandle;
+    private final MethodHolder _methodHolder;
     private final MessageSink _messageSink;
 
-    public AbstractDecodedMessageSink(CoreSession coreSession, JettyMethodHandle methodHandle)
+    public AbstractDecodedMessageSink(CoreSession coreSession, MethodHolder methodHolder)
     {
-        _methodHandle = methodHandle;
+        _methodHolder = methodHolder;
 
         try
         {
@@ -58,7 +58,7 @@ public abstract class AbstractDecodedMessageSink implements MessageSink
     {
         try
         {
-            _methodHandle.invoke(message);
+            _methodHolder.invoke(message);
         }
         catch (Throwable t)
         {
@@ -67,7 +67,7 @@ public abstract class AbstractDecodedMessageSink implements MessageSink
     }
 
     /**
-     * @return a message sink which will first decode the message then pass it to {@link #_methodHandle}.
+     * @return a message sink which will first decode the message then pass it to {@link #_methodHolder}.
      * @throws Exception for any error in creating the message sink.
      */
     abstract MessageSink newMessageSink(CoreSession coreSession) throws Exception;
@@ -84,9 +84,9 @@ public abstract class AbstractDecodedMessageSink implements MessageSink
     {
         protected final List<T> _decoders;
 
-        public Basic(CoreSession coreSession, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
+        public Basic(CoreSession coreSession, MethodHolder methodHolder, List<RegisteredDecoder> decoders)
         {
-            super(coreSession, methodHandle);
+            super(coreSession, methodHolder);
             if (decoders.isEmpty())
                 throw new IllegalArgumentException("Require at least one decoder for " + this.getClass());
             _decoders = decoders.stream()
@@ -99,9 +99,9 @@ public abstract class AbstractDecodedMessageSink implements MessageSink
     {
         protected final T _decoder;
 
-        public Stream(CoreSession coreSession, JettyMethodHandle methodHandle, List<RegisteredDecoder> decoders)
+        public Stream(CoreSession coreSession, MethodHolder methodHolder, List<RegisteredDecoder> decoders)
         {
-            super(coreSession, methodHandle);
+            super(coreSession, methodHolder);
             if (decoders.size() != 1)
                 throw new IllegalArgumentException("Require exactly one decoder for " + this.getClass());
             _decoder = decoders.get(0).getInstance();

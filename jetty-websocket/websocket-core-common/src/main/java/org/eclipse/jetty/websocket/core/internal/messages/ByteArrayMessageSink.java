@@ -21,16 +21,16 @@ import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.websocket.core.CoreSession;
 import org.eclipse.jetty.websocket.core.Frame;
 import org.eclipse.jetty.websocket.core.exception.MessageTooLargeException;
-import org.eclipse.jetty.websocket.core.internal.util.JettyMethodHandle;
+import org.eclipse.jetty.websocket.core.internal.util.MethodHolder;
 
 public class ByteArrayMessageSink extends AbstractMessageSink
 {
     private static final byte[] EMPTY_BUFFER = new byte[0];
     private ByteBufferCallbackAccumulator out;
 
-    public ByteArrayMessageSink(CoreSession session, JettyMethodHandle methodHandle)
+    public ByteArrayMessageSink(CoreSession session, MethodHolder methodHolder)
     {
-        super(session, methodHandle);
+        super(session, methodHolder);
     }
 
     @Override
@@ -52,10 +52,10 @@ public class ByteArrayMessageSink extends AbstractMessageSink
                 if (frame.hasPayload())
                 {
                     byte[] buf = BufferUtil.toArray(frame.getPayload());
-                    methodHandle.invoke(buf, 0, buf.length);
+                    methodHolder.invoke(buf, 0, buf.length);
                 }
                 else
-                    methodHandle.invoke(EMPTY_BUFFER, 0, 0);
+                    methodHolder.invoke(EMPTY_BUFFER, 0, 0);
 
                 callback.succeeded();
                 session.demand(1);
@@ -76,7 +76,7 @@ public class ByteArrayMessageSink extends AbstractMessageSink
             if (frame.isFin())
             {
                 byte[] buf = out.takeByteArray();
-                methodHandle.invoke(buf, 0, buf.length);
+                methodHolder.invoke(buf, 0, buf.length);
             }
 
             session.demand(1);
