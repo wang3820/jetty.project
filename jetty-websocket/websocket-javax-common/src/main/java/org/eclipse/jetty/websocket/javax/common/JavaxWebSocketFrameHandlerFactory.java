@@ -57,21 +57,6 @@ import org.eclipse.jetty.websocket.javax.common.messages.DecodedTextStreamMessag
 
 public abstract class JavaxWebSocketFrameHandlerFactory
 {
-    private static final MethodHandle FILTER_RETURN_TYPE_METHOD;
-
-    static
-    {
-        try
-        {
-            FILTER_RETURN_TYPE_METHOD = getServerMethodHandleLookup()
-                .findVirtual(JavaxWebSocketSession.class, "filterReturnType", MethodType.methodType(void.class, Object.class));
-        }
-        catch (Throwable e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
-
     static InvokerUtils.Arg[] getArgsFor(Class<?> objectType)
     {
         return new InvokerUtils.Arg[]{new InvokerUtils.Arg(Session.class), new InvokerUtils.Arg(objectType).required()};
@@ -228,15 +213,11 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         if (handle.returnType() == Void.TYPE)
             return handle;
 
-        // Technique from  https://stackoverflow.com/questions/48505787/methodhandle-with-general-non-void-return-filter
-
-        // Change the return type of the to be Object so it will match exact with JavaxWebSocketSession.filterReturnType(Object)
-        handle = handle.changeReturnType(Object.class);
-
-        // Filter the method return type to a call to JavaxWebSocketSession.filterReturnType() bound to this session
-        handle = handle.filterReturnValue(FILTER_RETURN_TYPE_METHOD.bindTo(session));
-
-        return handle;
+        return args ->
+        {
+            session.filterReturnType(handle.invoke(args));
+            return null;
+        };
     }
 
     private MethodHandle toMethodHandle(MethodHandles.Lookup lookup, Method method)

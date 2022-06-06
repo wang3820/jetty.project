@@ -15,6 +15,8 @@ package org.eclipse.jetty.websocket.core.internal.util;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.WrongMethodTypeException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -26,9 +28,9 @@ class NonBindingMethodHolder implements MethodHolder
     private final MethodHandle _methodHandle;
     private final Object[] _parameters;
     private final Boolean[] _boundParams;
+    // private final int[] _lookups;
     private final int _numParams;
-    private Class<Object> _returnType;
-    private MethodHandle _returnFilter;
+    private List<MethodHandle> _returnFilters;
 
     public NonBindingMethodHolder(MethodHandle methodHandle)
     {
@@ -57,11 +59,23 @@ class NonBindingMethodHolder implements MethodHolder
     @Override
     public Object invoke(Object... args) throws Throwable
     {
-        insertArguments(false, 0, args);
-        Object o = _methodHandle.invokeWithArguments(_parameters);
-        if (_returnFilter != null)
-            o = _returnFilter.invoke(o);
-        return (_returnType == null) ? o : _returnType.cast(o);
+        try
+        {
+            insertArguments(false, 0, args);
+            Object o = _methodHandle.invokeWithArguments(_parameters);
+            if (_returnFilters != null)
+            {
+                for (MethodHandle filter : _returnFilters)
+                {
+                    o = filter.invoke(o);
+                }
+            }
+            return o;
+        }
+        finally
+        {
+            clearArguments();
+        }
     }
 
     @Override
@@ -82,6 +96,7 @@ class NonBindingMethodHolder implements MethodHolder
     @SuppressWarnings({"UnusedReturnValue", "SameParameterValue"})
     private MethodHolder insertArguments(boolean bind, int idx, Object... args)
     {
+        // TODO: try this with lookup table.
         int index = 0;
         int argsIndex = 0;
         for (int i = 0; i < _numParams; i++)
@@ -109,17 +124,23 @@ class NonBindingMethodHolder implements MethodHolder
         return this;
     }
 
-    @Override
-    public MethodHolder filterReturnValue(MethodHandle filter)
+    private void clearArguments()
     {
-        _returnFilter = filter;
-        return this;
+        for (int i = 0; i < _numParams; i++)
+        {
+            if (_boundParams[i] != Boolean.TRUE)
+            {
+                _parameters[i] = null;
+            }
+        }
     }
 
     @Override
-    public MethodHolder changeReturnType(Class<Object> objectClass)
+    public MethodHolder filterReturnValue(MethodHandle filter)
     {
-        _returnType = objectClass;
+        if (_returnFilters == null)
+            _returnFilters = new ArrayList<>();
+        _returnFilters.add(filter);
         return this;
     }
 
@@ -132,6 +153,6 @@ class NonBindingMethodHolder implements MethodHolder
     @Override
     public Class<?> returnType()
     {
-        return _returnType;
+        return ((_returnFilters == null) ? _methodHandle : _returnFilters.get(_returnFilters.size() - 1)).type().returnType();
     }
 }

@@ -26,6 +26,6 @@ public abstract class AbstractMessageSink implements MessageSink
     public AbstractMessageSink(CoreSession session, MethodHolder methodHolder)
     {
         this.session = Objects.requireNonNull(session, "CoreSession");
-        this.methodHolder = Objects.requireNonNull(methodHolder, "MethodHandle");
+        this.methodHolder = Objects.requireNonNull(methodHolder, "MethodHolder");
     }
 }

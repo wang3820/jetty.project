@@ -53,13 +53,6 @@ class BindingMethodHolder implements MethodHolder
     }
 
     @Override
-    public BindingMethodHolder changeReturnType(Class<Object> objectClass)
-    {
-        _methodHandle = _methodHandle.asType(_methodHandle.type().changeReturnType(objectClass));
-        return this;
-    }
-
-    @Override
     public Class<?> parameterType(int idx)
     {
         return _methodHandle.type().parameterType(idx);

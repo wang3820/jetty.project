@@ -13,8 +13,6 @@
 
 package org.eclipse.jetty.websocket.core.internal.messages;
 
-import java.lang.invoke.MethodHandle;
-
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.Utf8StringBuilder;
 import org.eclipse.jetty.websocket.core.CoreSession;
@@ -31,12 +29,6 @@ public class StringMessageSink extends AbstractMessageSink
     {
         super(session, methodHolder);
         this.size = 0;
-    }
-
-    @Deprecated
-    public StringMessageSink(CoreSession session, MethodHandle methodHandle)
-    {
-        this(session, MethodHolder.from(methodHandle));
     }
 
     @Override

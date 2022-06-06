@@ -19,17 +19,25 @@ import java.lang.invoke.MethodHandle;
  * An interface for managing invocations of methods whose arguments may need to be augmented, by
  * binding in certain parameters ahead of time.
  *
- * This differs from {@link MethodHandle}s that any calls the methods such as {@link #bindTo(Object)}
- * will change the instance of {@link MethodHolder} it is called on.
+ * Implementations may use various invocation mechanisms, including:
+ * <ul>
+ *  <li>direct method invocation on an held object</li>
+ *  <li>calling a method pointer</li>
+ *  <li>calling a MethodHandle bound to the known arguments</li>
+ *  <li>calling a MethodHandle without binding to the known arguments</li>
+ * </ul>
  *
  * Implementations of this may not be thread safe, so the caller must use some external mutual exclusion
  * unless they are using a specific implementation known to be thread-safe.
  */
 public interface MethodHolder
 {
+    String METHOD_HOLDER_BINDING_PROPERTY = "jetty.methodholder.binding";
+
     static MethodHolder from(MethodHandle methodHandle)
     {
-        return from(methodHandle, false);
+        String property = System.getProperty(METHOD_HOLDER_BINDING_PROPERTY);
+        return from(methodHandle, Boolean.parseBoolean(property));
     }
 
     static MethodHolder from(MethodHandle methodHandle, boolean binding)
@@ -52,11 +60,6 @@ public interface MethodHolder
     }
 
     default MethodHolder filterReturnValue(MethodHandle filter)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default MethodHolder changeReturnType(Class<Object> objectClass)
     {
         throw new UnsupportedOperationException();
     }

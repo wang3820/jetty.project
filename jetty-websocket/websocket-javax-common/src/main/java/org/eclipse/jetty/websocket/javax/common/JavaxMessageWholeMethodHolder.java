@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty.websocket.javax.common;
 
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.WrongMethodTypeException;
 import javax.websocket.MessageHandler;
 
@@ -36,30 +35,6 @@ class JavaxMessageWholeMethodHolder<T> implements MethodHolder
             throw new WrongMethodTypeException(String.format("Expected %s params but had %s", 1, args.length));
         _messageHandler.onMessage((T)args[0]);
         return null;
-    }
-
-    @Override
-    public MethodHolder bindTo(Object arg)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public MethodHolder bindTo(Object arg, int idx)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public MethodHolder filterReturnValue(MethodHandle filter)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public MethodHolder changeReturnType(Class<Object> objectClass)
-    {
-        throw new UnsupportedOperationException();
     }
 
     @Override
