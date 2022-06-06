@@ -16,6 +16,7 @@ package org.eclipse.jetty.websocket.core.internal.util;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.WrongMethodTypeException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
@@ -27,33 +28,32 @@ class NonBindingMethodHolder implements MethodHolder
 {
     private final MethodHandle _methodHandle;
     private final Object[] _parameters;
-    private final Boolean[] _boundParams;
-    // private final int[] _lookups;
-    private final int _numParams;
+    private final List<Integer> _lookupTable = new LinkedList<>();
     private List<MethodHandle> _returnFilters;
 
     public NonBindingMethodHolder(MethodHandle methodHandle)
     {
         _methodHandle = Objects.requireNonNull(methodHandle);
-        _numParams = methodHandle.type().parameterCount();
-        _parameters = new Object[_numParams];
-        _boundParams = new Boolean[_numParams];
+        int numParams = methodHandle.type().parameterCount();
+        _parameters = new Object[numParams];
+        for (int i = 0; i < numParams; i++)
+        {
+            _lookupTable.add(i);
+        }
     }
 
-    private int getInternalIndex(int idx)
+    private void dropFromLookupTable(int index)
     {
-        int index = 0;
-        for (int i = 0; i < _numParams; i++)
-        {
-            if (_boundParams[i] != Boolean.TRUE)
-            {
-                if (index == idx)
-                    return i;
-                index++;
-            }
-        }
+        if (index < 0 || index >= _lookupTable.size())
+            throw new IndexOutOfBoundsException();
+        _lookupTable.remove(index);
+    }
 
-        throw new IndexOutOfBoundsException(idx);
+    private int getInternalIndex(int index)
+    {
+        if (index < 0 || index >= _lookupTable.size())
+            throw new IndexOutOfBoundsException();
+        return _lookupTable.get(index);
     }
 
     @Override
@@ -61,7 +61,7 @@ class NonBindingMethodHolder implements MethodHolder
     {
         try
         {
-            insertArguments(false, 0, args);
+            insertArguments(args);
             Object o = _methodHandle.invokeWithArguments(_parameters);
             if (_returnFilters != null)
             {
@@ -81,9 +81,8 @@ class NonBindingMethodHolder implements MethodHolder
     @Override
     public MethodHolder bindTo(Object arg, int idx)
     {
-        int internalIndex = getInternalIndex(idx);
-        _parameters[internalIndex] = arg;
-        _boundParams[internalIndex] = true;
+        _parameters[getInternalIndex(idx)] = arg;
+        dropFromLookupTable(idx);
         return this;
     }
 
@@ -94,44 +93,23 @@ class NonBindingMethodHolder implements MethodHolder
     }
 
     @SuppressWarnings({"UnusedReturnValue", "SameParameterValue"})
-    private MethodHolder insertArguments(boolean bind, int idx, Object... args)
+    private MethodHolder insertArguments(Object... args)
     {
-        // TODO: try this with lookup table.
-        int index = 0;
-        int argsIndex = 0;
-        for (int i = 0; i < _numParams; i++)
-        {
-            if (_boundParams[i] != Boolean.TRUE)
-            {
-                if (index >= idx && argsIndex < args.length)
-                {
-                    Object val = args[argsIndex++];
-                    _parameters[i] = val;
-                    _boundParams[i] = bind;
-                }
-                else
-                {
-                    _parameters[i] = null;
-                }
-                index++;
-            }
-        }
+        if (_lookupTable.size() != args.length)
+            throw new WrongMethodTypeException(String.format("Expected %s params but had %s", _lookupTable.size(), args.length));
 
-        if (argsIndex < args.length)
-            throw new WrongMethodTypeException(String.format("Expected %s params but had %s", args.length, argsIndex + 1));
-        if (index != argsIndex)
-            throw new WrongMethodTypeException(String.format("Expected %s params but had %s", index + 1, argsIndex + 1));
+        for (int i = 0; i < args.length; i++)
+        {
+            _parameters[_lookupTable.get(i)] = args[i];
+        }
         return this;
     }
 
     private void clearArguments()
     {
-        for (int i = 0; i < _numParams; i++)
+        for (int i : _lookupTable)
         {
-            if (_boundParams[i] != Boolean.TRUE)
-            {
-                _parameters[i] = null;
-            }
+            _parameters[i] = null;
         }
     }
 
