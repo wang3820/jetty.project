@@ -22,14 +22,15 @@ import java.util.Objects;
 
 /**
  * This implementation of {@link MethodHolder} is not thread safe.
- * Mutual exclusion should be used when calling {@link #invoke(Object...)}.
+ * Mutual exclusion should be used when calling {@link #invoke(Object...)}, or this should only
+ * be invoked from a single thread.
  */
 class NonBindingMethodHolder implements MethodHolder
 {
     private final MethodHandle _methodHandle;
     private final Object[] _parameters;
-    private final List<Integer> _lookupTable = new LinkedList<>();
-    private List<MethodHandle> _returnFilters;
+    private final List<Integer> _unboundParamIndexes = new LinkedList<>();
+    private final List<MethodHandle> _returnFilters = new ArrayList<>();
 
     public NonBindingMethodHolder(MethodHandle methodHandle)
     {
@@ -38,22 +39,8 @@ class NonBindingMethodHolder implements MethodHolder
         _parameters = new Object[numParams];
         for (int i = 0; i < numParams; i++)
         {
-            _lookupTable.add(i);
+            _unboundParamIndexes.add(i);
         }
-    }
-
-    private void dropFromLookupTable(int index)
-    {
-        if (index < 0 || index >= _lookupTable.size())
-            throw new IndexOutOfBoundsException();
-        _lookupTable.remove(index);
-    }
-
-    private int getInternalIndex(int index)
-    {
-        if (index < 0 || index >= _lookupTable.size())
-            throw new IndexOutOfBoundsException();
-        return _lookupTable.get(index);
     }
 
     @Override
@@ -63,12 +50,9 @@ class NonBindingMethodHolder implements MethodHolder
         {
             insertArguments(args);
             Object o = _methodHandle.invokeWithArguments(_parameters);
-            if (_returnFilters != null)
+            for (MethodHandle filter : _returnFilters)
             {
-                for (MethodHandle filter : _returnFilters)
-                {
-                    o = filter.invoke(o);
-                }
+                o = filter.invoke(o);
             }
             return o;
         }
@@ -81,8 +65,8 @@ class NonBindingMethodHolder implements MethodHolder
     @Override
     public MethodHolder bindTo(Object arg, int idx)
     {
-        _parameters[getInternalIndex(idx)] = arg;
-        dropFromLookupTable(idx);
+        _parameters[_unboundParamIndexes.get(idx)] = arg;
+        _unboundParamIndexes.remove(idx);
         return this;
     }
 
@@ -92,22 +76,21 @@ class NonBindingMethodHolder implements MethodHolder
         return bindTo(arg, 0);
     }
 
-    @SuppressWarnings({"UnusedReturnValue", "SameParameterValue"})
-    private MethodHolder insertArguments(Object... args)
+    private void insertArguments(Object... args)
     {
-        if (_lookupTable.size() != args.length)
-            throw new WrongMethodTypeException(String.format("Expected %s params but had %s", _lookupTable.size(), args.length));
+        if (_unboundParamIndexes.size() != args.length)
+            throw new WrongMethodTypeException(String.format("Expected %s params but had %s", _unboundParamIndexes.size(), args.length));
 
-        for (int i = 0; i < args.length; i++)
+        int argsIndex = 0;
+        for (int index : _unboundParamIndexes)
         {
-            _parameters[_lookupTable.get(i)] = args[i];
+            _parameters[index] = args[argsIndex++];
         }
-        return this;
     }
 
     private void clearArguments()
     {
-        for (int i : _lookupTable)
+        for (int i : _unboundParamIndexes)
         {
             _parameters[i] = null;
         }
@@ -116,8 +99,6 @@ class NonBindingMethodHolder implements MethodHolder
     @Override
     public MethodHolder filterReturnValue(MethodHandle filter)
     {
-        if (_returnFilters == null)
-            _returnFilters = new ArrayList<>();
         _returnFilters.add(filter);
         return this;
     }
@@ -125,12 +106,12 @@ class NonBindingMethodHolder implements MethodHolder
     @Override
     public Class<?> parameterType(int idx)
     {
-        return _methodHandle.type().parameterType(getInternalIndex(idx));
+        return _methodHandle.type().parameterType(_unboundParamIndexes.get(idx));
     }
 
     @Override
     public Class<?> returnType()
     {
-        return ((_returnFilters == null) ? _methodHandle : _returnFilters.get(_returnFilters.size() - 1)).type().returnType();
+        return (_returnFilters.isEmpty() ? _methodHandle : _returnFilters.get(_returnFilters.size() - 1)).type().returnType();
     }
 }

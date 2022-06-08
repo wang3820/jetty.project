@@ -32,7 +32,7 @@ import java.lang.invoke.MethodHandle;
  */
 public interface MethodHolder
 {
-    String METHOD_HOLDER_BINDING_PROPERTY = "jetty.methodholder.binding";
+    String METHOD_HOLDER_BINDING_PROPERTY = "jetty.websocket.methodholder.binding";
 
     static MethodHolder from(MethodHandle methodHandle)
     {

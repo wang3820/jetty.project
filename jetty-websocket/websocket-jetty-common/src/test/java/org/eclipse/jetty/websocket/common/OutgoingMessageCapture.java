@@ -106,7 +106,7 @@ public class OutgoingMessageCapture extends CoreSession.Empty implements CoreSes
                 String event = String.format("BINARY:fin=%b:len=%d", frame.isFin(), frame.getPayloadLength());
                 LOG.debug(event);
                 events.offer(event);
-                messageSink = new ByteBufferMessageSink(this, wholeBinaryHandle);
+                messageSink = new ByteBufferMessageSink(this, MethodHolder.from(wholeBinaryHandle));
                 break;
             }
             case OpCode.CONTINUATION:

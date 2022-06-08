@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty.websocket.core.internal.messages;
 
-import java.lang.invoke.MethodHandle;
 import java.nio.ByteBuffer;
 
 import org.eclipse.jetty.io.ByteBufferCallbackAccumulator;
@@ -32,12 +31,6 @@ public class ByteBufferMessageSink extends AbstractMessageSink
     public ByteBufferMessageSink(CoreSession session, MethodHolder methodHolder)
     {
         super(session, methodHolder);
-    }
-
-    @Deprecated
-    public ByteBufferMessageSink(CoreSession session, MethodHandle methodHandle)
-    {
-        this(session, MethodHolder.from(methodHandle));
     }
 
     @Override

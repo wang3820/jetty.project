@@ -205,7 +205,7 @@ public abstract class JavaxWebSocketFrameHandlerFactory
         }
     }
 
-    public static MethodHolder wrapNonVoidReturnType(MethodHolder handle, JavaxWebSocketSession session)
+    static MethodHolder wrapNonVoidReturnType(MethodHolder handle, JavaxWebSocketSession session)
     {
         if (handle == null)
             return null;
