@@ -54,6 +54,7 @@ import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.CookieCompliance;
 import org.eclipse.jetty.http.HttpCompliance;
 import org.eclipse.jetty.http.HttpCookie;
+import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpTester;
@@ -62,6 +63,7 @@ import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.UriCompliance;
+import org.eclipse.jetty.http.pathmap.MatchedPath;
 import org.eclipse.jetty.http.pathmap.RegexPathSpec;
 import org.eclipse.jetty.http.pathmap.ServletPathSpec;
 import org.eclipse.jetty.io.Connection;
@@ -1964,6 +1966,8 @@ public class RequestTest
         request.getResponse().getHttpFields().add(new HttpCookie.SetCookieHttpField(new HttpCookie("good", "thumbsup", 100), CookieCompliance.RFC6265));
         request.getResponse().getHttpFields().add(new HttpCookie.SetCookieHttpField(new HttpCookie("bonza", "bewdy", 1), CookieCompliance.RFC6265));
         request.getResponse().getHttpFields().add(new HttpCookie.SetCookieHttpField(new HttpCookie("bad", "thumbsdown", 0), CookieCompliance.RFC6265));
+        request.getResponse().getHttpFields().add(new HttpField(HttpHeader.SET_COOKIE, new HttpCookie("ugly", "duckling", 100).getSetCookie(CookieCompliance.RFC6265)));
+        request.getResponse().getHttpFields().add(new HttpField(HttpHeader.SET_COOKIE, "flow=away; Max-Age=0; Secure; HttpOnly; SameSite=None"));
         HttpFields.Mutable fields = HttpFields.build();
         fields.add(HttpHeader.AUTHORIZATION, "Basic foo");
         request.setMetaData(new MetaData.Request("GET", HttpURI.from(uri), HttpVersion.HTTP_1_0, fields));
@@ -1988,6 +1992,8 @@ public class RequestTest
         assertThat(builder.getHeader("Cookie"), containsString("good"));
         assertThat(builder.getHeader("Cookie"), containsString("maxpos"));
         assertThat(builder.getHeader("Cookie"), not(containsString("bad")));
+        assertThat(builder.getHeader("Cookie"), containsString("ugly"));
+        assertThat(builder.getHeader("Cookie"), not(containsString("flown")));
     }
 
     @Test
@@ -2014,11 +2020,13 @@ public class RequestTest
     {
         ServletPathSpec spec;
         String uri;
+        MatchedPath matched;
         ServletPathMapping m;
 
         spec = null;
         uri = null;
-        m = new ServletPathMapping(spec, null, uri);
+        matched = null;
+        m = new ServletPathMapping(spec, null, uri, matched);
         assertThat(m.getMappingMatch(), nullValue());
         assertThat(m.getMatchValue(), is(""));
         assertThat(m.getPattern(), nullValue());
@@ -2028,71 +2036,78 @@ public class RequestTest
 
         spec = new ServletPathSpec("");
         uri = "/";
-        m = new ServletPathMapping(spec, "Something", uri);
+        matched = spec.matched(uri);
+        m = new ServletPathMapping(spec, "Something", uri, matched);
         assertThat(m.getMappingMatch(), is(MappingMatch.CONTEXT_ROOT));
         assertThat(m.getMatchValue(), is(""));
         assertThat(m.getPattern(), is(""));
         assertThat(m.getServletName(), is("Something"));
-        assertThat(m.getServletPath(), is(spec.getPathMatch(uri)));
-        assertThat(m.getPathInfo(), is(spec.getPathInfo(uri)));
+        assertThat(m.getServletPath(), is(""));
+        assertThat(m.getPathInfo(), is("/"));
 
         spec = new ServletPathSpec("/");
         uri = "/some/path";
-        m = new ServletPathMapping(spec, "Default", uri);
+        matched = spec.matched(uri);
+        m = new ServletPathMapping(spec, "Default", uri, matched);
         assertThat(m.getMappingMatch(), is(MappingMatch.DEFAULT));
         assertThat(m.getMatchValue(), is(""));
         assertThat(m.getPattern(), is("/"));
         assertThat(m.getServletName(), is("Default"));
-        assertThat(m.getServletPath(), is(spec.getPathMatch(uri)));
-        assertThat(m.getPathInfo(), is(spec.getPathInfo(uri)));
+        assertThat(m.getServletPath(), is("/some/path"));
+        assertThat(m.getPathInfo(), nullValue());
 
         spec = new ServletPathSpec("/foo/*");
         uri = "/foo/bar";
-        m = new ServletPathMapping(spec, "FooServlet", uri);
+        matched = spec.matched(uri);
+        m = new ServletPathMapping(spec, "FooServlet", uri, matched);
         assertThat(m.getMappingMatch(), is(MappingMatch.PATH));
         assertThat(m.getMatchValue(), is("foo"));
         assertThat(m.getPattern(), is("/foo/*"));
         assertThat(m.getServletName(), is("FooServlet"));
-        assertThat(m.getServletPath(), is(spec.getPathMatch(uri)));
-        assertThat(m.getPathInfo(), is(spec.getPathInfo(uri)));
+        assertThat(m.getServletPath(), is("/foo"));
+        assertThat(m.getPathInfo(), is("/bar"));
 
         uri = "/foo/";
-        m = new ServletPathMapping(spec, "FooServlet", uri);
+        matched = spec.matched(uri);
+        m = new ServletPathMapping(spec, "FooServlet", uri, matched);
         assertThat(m.getMappingMatch(), is(MappingMatch.PATH));
         assertThat(m.getMatchValue(), is("foo"));
         assertThat(m.getPattern(), is("/foo/*"));
         assertThat(m.getServletName(), is("FooServlet"));
-        assertThat(m.getServletPath(), is(spec.getPathMatch(uri)));
-        assertThat(m.getPathInfo(), is(spec.getPathInfo(uri)));
+        assertThat(m.getServletPath(), is("/foo"));
+        assertThat(m.getPathInfo(), is("/"));
 
         uri = "/foo";
-        m = new ServletPathMapping(spec, "FooServlet", uri);
+        matched = spec.matched(uri);
+        m = new ServletPathMapping(spec, "FooServlet", uri, matched);
         assertThat(m.getMappingMatch(), is(MappingMatch.PATH));
         assertThat(m.getMatchValue(), is("foo"));
         assertThat(m.getPattern(), is("/foo/*"));
         assertThat(m.getServletName(), is("FooServlet"));
-        assertThat(m.getServletPath(), is(spec.getPathMatch(uri)));
-        assertThat(m.getPathInfo(), is(spec.getPathInfo(uri)));
+        assertThat(m.getServletPath(), is("/foo"));
+        assertThat(m.getPathInfo(), nullValue());
 
         spec = new ServletPathSpec("*.jsp");
         uri = "/foo/bar.jsp";
-        m = new ServletPathMapping(spec, "JspServlet", uri);
+        matched = spec.matched(uri);
+        m = new ServletPathMapping(spec, "JspServlet", uri, matched);
         assertThat(m.getMappingMatch(), is(MappingMatch.EXTENSION));
         assertThat(m.getMatchValue(), is("foo/bar"));
         assertThat(m.getPattern(), is("*.jsp"));
         assertThat(m.getServletName(), is("JspServlet"));
-        assertThat(m.getServletPath(), is(spec.getPathMatch(uri)));
-        assertThat(m.getPathInfo(), is(spec.getPathInfo(uri)));
+        assertThat(m.getServletPath(), is("/foo/bar.jsp"));
+        assertThat(m.getPathInfo(), nullValue());
 
         spec = new ServletPathSpec("/catalog");
         uri = "/catalog";
-        m = new ServletPathMapping(spec, "CatalogServlet", uri);
+        matched = spec.matched(uri);
+        m = new ServletPathMapping(spec, "CatalogServlet", uri, matched);
         assertThat(m.getMappingMatch(), is(MappingMatch.EXACT));
         assertThat(m.getMatchValue(), is("catalog"));
         assertThat(m.getPattern(), is("/catalog"));
         assertThat(m.getServletName(), is("CatalogServlet"));
-        assertThat(m.getServletPath(), is(spec.getPathMatch(uri)));
-        assertThat(m.getPathInfo(), is(spec.getPathInfo(uri)));
+        assertThat(m.getServletPath(), is("/catalog"));
+        assertThat(m.getPathInfo(), nullValue());
     }
 
     @Test
@@ -2102,7 +2117,7 @@ public class RequestTest
         ServletPathMapping m;
 
         spec = new RegexPathSpec("^/.*$");
-        m = new ServletPathMapping(spec, "Something", "/some/path");
+        m = new ServletPathMapping(spec, "Something", "/some/path", spec.matched("/some/path"));
         assertThat(m.getMappingMatch(), nullValue());
         assertThat(m.getPattern(), is(spec.getDeclaration()));
         assertThat(m.getServletName(), is("Something"));
@@ -2111,7 +2126,7 @@ public class RequestTest
         assertThat(m.getMatchValue(), is("some/path"));
 
         spec = new RegexPathSpec("^/some(/.*)?$");
-        m = new ServletPathMapping(spec, "Something", "/some/path");
+        m = new ServletPathMapping(spec, "Something", "/some/path", spec.matched("/some/path"));
         assertThat(m.getMappingMatch(), nullValue());
         assertThat(m.getPattern(), is(spec.getDeclaration()));
         assertThat(m.getServletName(), is("Something"));
@@ -2119,7 +2134,7 @@ public class RequestTest
         assertThat(m.getPathInfo(), is("/path"));
         assertThat(m.getMatchValue(), is("some"));
 
-        m = new ServletPathMapping(spec, "Something", "/some");
+        m = new ServletPathMapping(spec, "Something", "/some", spec.matched("/some"));
         assertThat(m.getMappingMatch(), nullValue());
         assertThat(m.getPattern(), is(spec.getDeclaration()));
         assertThat(m.getServletName(), is("Something"));
