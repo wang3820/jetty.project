@@ -14,8 +14,10 @@
 package org.eclipse.jetty.test.nested;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Enumeration;
 import javax.servlet.AsyncContext;
+import javax.servlet.DispatcherType;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -46,7 +48,7 @@ public class RpcConnectionTest
     public void before() throws Exception
     {
         server = new Server();
-        connector = new NestedConnector(server);
+        connector = new NestedConnector(server, "RPC");
         server.addConnector(connector);
 
         ServletContextHandler servletContextHandler = new ServletContextHandler();
@@ -55,36 +57,33 @@ public class RpcConnectionTest
             @Override
             protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
             {
-                AsyncContext asyncContext = req.startAsync();
-                asyncContext.start(() ->
+                // We can do async request dispatches.
+                if (req.getDispatcherType() == DispatcherType.REQUEST)
                 {
-                    try
-                    {
-                        String requestContent = IO.toString(req.getInputStream());
+                    AsyncContext asyncContext = req.startAsync();
+                    asyncContext.dispatch();
+                    return;
+                }
 
-                        StringBuilder headers = new StringBuilder();
-                        headers.append("{");
+                // Setting custom headers.
+                resp.setHeader("customHeader", "1234556");
+                resp.setContentType("text/plain");
 
-                        Enumeration<String> headerNames = req.getHeaderNames();
-                        while (headerNames.hasMoreElements())
-                        {
-                            String element = headerNames.nextElement();
-                            headers.append(element).append(": ").append(req.getHeader(element));
-                            if (headerNames.hasMoreElements())
-                                headers.append(",");
-                        }
-                        headers.append("}");
+                // Get headers from the RPC request.
+                PrintWriter writer = resp.getWriter();
+                writer.println("request headers: " + getRequestHeadersAsString(req));
 
-                        resp.getWriter().println("requset headers: " + headers.toString());
-                        resp.getWriter().println("request content: " + requestContent);
+                // Read content from the RPC request.
+                writer.println("request content: " + IO.toString(req.getInputStream()));
+                writer.println();
 
-                        asyncContext.complete();
-                    }
-                    catch (Throwable t)
-                    {
-                        t.printStackTrace();
-                    }
-                });
+                // Get things like async attributes.
+                writer.println("request attribute ASYNC_MAPPING: " + req.getAttribute(AsyncContext.ASYNC_MAPPING));
+                writer.println("request attribute ASYNC_QUERY_STRING: " + req.getAttribute(AsyncContext.ASYNC_QUERY_STRING));
+                writer.println("request attribute ASYNC_SERVLET_PATH: " + req.getAttribute(AsyncContext.ASYNC_SERVLET_PATH));
+                writer.println("request attribute ASYNC_CONTEXT_PATH: " + req.getAttribute(AsyncContext.ASYNC_CONTEXT_PATH));
+                writer.println("request attribute ASYNC_PATH_INFO: " + req.getAttribute(AsyncContext.ASYNC_PATH_INFO));
+                writer.println("request attribute ASYNC_REQUEST_URI: " + req.getAttribute(AsyncContext.ASYNC_REQUEST_URI));
             }
         }), "/");
         server.setHandler(servletContextHandler);
@@ -96,6 +95,22 @@ public class RpcConnectionTest
     public void after() throws Exception
     {
         server.stop();
+    }
+
+    private static String getRequestHeadersAsString(HttpServletRequest req)
+    {
+        StringBuilder headers = new StringBuilder();
+        headers.append("{");
+        Enumeration<String> headerNames = req.getHeaderNames();
+        while (headerNames.hasMoreElements())
+        {
+            String element = headerNames.nextElement();
+            headers.append(element).append(": ").append(req.getHeader(element));
+            if (headerNames.hasMoreElements())
+                headers.append(",");
+        }
+        headers.append("}");
+        return headers.toString();
     }
 
     @Test
@@ -115,7 +130,9 @@ public class RpcConnectionTest
         {
             System.err.println("    " + field.getName() + ": " + field.getValue());
         }
-        System.err.println("Response Content: ");
+        System.err.println("\nResponse Content: ");
+        System.err.println("============================================");
         System.err.println(BufferUtil.toString(response.getContent()));
+        System.err.println("============================================");
     }
 }
