@@ -44,7 +44,6 @@ public class NestedHttpStream implements HttpStream
         _connection = connection;
     }
 
-
     @Override
     public String getId()
     {
