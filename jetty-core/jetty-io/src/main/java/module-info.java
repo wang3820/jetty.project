@@ -23,7 +23,4 @@ module org.eclipse.jetty.io
     exports org.eclipse.jetty.io;
     exports org.eclipse.jetty.io.content;
     exports org.eclipse.jetty.io.ssl;
-
-    exports org.eclipse.jetty.io.internal to
-        org.eclipse.jetty.nested;
 }

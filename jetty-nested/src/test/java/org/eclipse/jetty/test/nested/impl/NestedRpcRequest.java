@@ -18,10 +18,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.io.Content;
-import org.eclipse.jetty.io.internal.ByteBufferChunk;
 import org.eclipse.jetty.nested.api.NestedRequest;
 import org.eclipse.jetty.test.nested.rpc.MockRpcRequest;
-import org.eclipse.jetty.util.BufferUtil;
 
 public class NestedRpcRequest implements NestedRequest
 {
@@ -32,7 +30,7 @@ public class NestedRpcRequest implements NestedRequest
     public NestedRpcRequest(MockRpcRequest request)
     {
         _request = request;
-        _content.set(new ByteBufferChunk(BufferUtil.toBuffer(request.getData()), true){});
+        _content.set(new ContentChunk(request.getData()));
     }
 
     @Override
@@ -74,7 +72,7 @@ public class NestedRpcRequest implements NestedRequest
     @Override
     public Content.Chunk read()
     {
-        return _content.getAndUpdate(chunk -> (chunk instanceof ByteBufferChunk) ? EOF : chunk);
+        return _content.getAndUpdate(chunk -> (chunk instanceof ContentChunk) ? EOF : chunk);
     }
 
     @Override
