@@ -62,9 +62,7 @@ public interface Stream
      */
     public default CompletableFuture<Stream> headers(HeadersFrame frame)
     {
-        Promise.Completable<Stream> result = new Promise.Completable<>();
-        headers(frame, Callback.from(() -> result.succeeded(this), result::failed));
-        return result;
+        return Promise.Completable.with(p -> headers(frame, Callback.from(() -> p.succeeded(this), p::failed)));
     }
 
     /**
@@ -85,9 +83,7 @@ public interface Stream
      */
     public default CompletableFuture<Stream> push(PushPromiseFrame frame, Listener listener)
     {
-        Promise.Completable<Stream> result = new Promise.Completable<>();
-        push(frame, result, listener);
-        return result;
+        return Promise.Completable.with(p -> push(frame, p, listener));
     }
 
     /**
@@ -100,8 +96,8 @@ public interface Stream
     public void push(PushPromiseFrame frame, Promise<Stream> promise, Listener listener);
 
     /**
-     * <p>Reads DATA frames from this stream, wrapping them in retainable {@link Data}
-     * objects.</p>
+     * <p>Reads DATA frames from this stream, wrapping them in retainable
+     * {@link Data} objects.</p>
      * <p>The returned {@link Stream.Data} object may be {@code null}, indicating
      * that the end of the read side of the stream has not yet been reached, which
      * may happen in these cases:</p>
@@ -119,6 +115,10 @@ public interface Stream
      * <p>{@link Stream.Data} objects may be stored away for later, asynchronous,
      * processing (for example, to process them only when all of them have been
      * received).</p>
+     * <p>Once the returned {@link Stream.Data} object indicates that the end
+     * of the read side of the stream has been reached, further calls to this
+     * method will return a {@link Stream.Data} object with the same indication,
+     * although the instance may be different.</p>
      *
      * @return a {@link Stream.Data} object containing the DATA frame,
      * or null if no DATA frame is available
@@ -135,9 +135,7 @@ public interface Stream
      */
     public default CompletableFuture<Stream> data(DataFrame frame)
     {
-        Promise.Completable<Stream> result = new Promise.Completable<>();
-        data(frame, Callback.from(() -> result.succeeded(this), result::failed));
-        return result;
+        return Promise.Completable.with(p -> data(frame, Callback.from(() -> p.succeeded(this), p::failed)));
     }
 
     /**
@@ -151,7 +149,18 @@ public interface Stream
     /**
      * <p>Sends the given RST_STREAM {@code frame}.</p>
      *
-     * @param frame the RST_FRAME to send
+     * @param frame the RST_STREAM frame to send
+     * @return the CompletableFuture that gets notified when the frame has been sent
+     */
+    public default CompletableFuture<Void> reset(ResetFrame frame)
+    {
+        return Callback.Completable.with(c -> reset(frame, c));
+    }
+
+    /**
+     * <p>Sends the given RST_STREAM {@code frame}.</p>
+     *
+     * @param frame the RST_STREAM frame to send
      * @param callback the callback that gets notified when the frame has been sent
      */
     public void reset(ResetFrame frame, Callback callback);
@@ -214,9 +223,10 @@ public interface Stream
     public void setIdleTimeout(long idleTimeout);
 
     /**
-     * <p>Demands more {@code DATA} frames for this stream, causing
-     * {@link Listener#onDataAvailable(Stream)} to be invoked, possibly at a later time,
-     * when the stream has data to be read.</p>
+     * <p>Demands more {@code DATA} frames for this stream.</p>
+     * Calling this method causes {@link Listener#onDataAvailable(Stream)}
+     * to be invoked, possibly at a later time, when the stream has data
+     * to be read, but also when the stream has reached EOF.</p>
      * <p>This method is idempotent: calling it when there already is an
      * outstanding demand to invoke {@link Listener#onDataAvailable(Stream)}
      * is a no-operation.</p>
@@ -224,8 +234,6 @@ public interface Stream
      * {@link Listener#onDataAvailable(Stream)}, unless another thread
      * that must invoke {@link Listener#onDataAvailable(Stream)}
      * notices the outstanding demand first.</p>
-     * <p>When all bytes have been read (via {@link #readData()}), further
-     * invocations of this method are a no-operation.</p>
      * <p>It is always guaranteed that invoking this method from within
      * {@code onDataAvailable(Stream)} will not cause a
      * {@link StackOverflowError}.</p>
@@ -345,7 +353,7 @@ public interface Stream
          * <p>Callback method invoked when a RST_STREAM frame has been received for this stream.</p>
          *
          * @param stream the stream
-         * @param frame the RST_FRAME received
+         * @param frame the RST_STREAM frame received
          * @param callback the callback to complete when the reset has been handled
          */
         public default void onReset(Stream stream, ResetFrame frame, Callback callback)
@@ -413,18 +421,6 @@ public interface Stream
         }
 
         @Override
-        public void retain()
-        {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean release()
-        {
-            return true;
-        }
-
-        @Override
         public String toString()
         {
             return "%s@%x[%s]".formatted(getClass().getSimpleName(), hashCode(), frame());
@@ -435,6 +431,18 @@ public interface Stream
             public EOF(int streamId)
             {
                 super(new DataFrame(streamId, BufferUtil.EMPTY_BUFFER, true));
+            }
+
+            @Override
+            public void retain()
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public boolean release()
+            {
+                return true;
             }
         }
     }

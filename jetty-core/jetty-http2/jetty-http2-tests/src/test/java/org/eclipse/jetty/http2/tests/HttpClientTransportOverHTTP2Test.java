@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongConsumer;
 import java.util.function.UnaryOperator;
+import java.util.stream.IntStream;
 
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpConnection;
@@ -40,6 +41,8 @@ import org.eclipse.jetty.client.HttpDestination;
 import org.eclipse.jetty.client.HttpProxy;
 import org.eclipse.jetty.client.Origin;
 import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.api.Response;
+import org.eclipse.jetty.client.util.InputStreamResponseListener;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
@@ -71,7 +74,6 @@ import org.eclipse.jetty.io.MappedByteBufferPool;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -193,7 +195,7 @@ public class HttpClientTransportOverHTTP2Test extends AbstractTest
         start(new Handler.Processor()
         {
             @Override
-            public void process(Request request, Response response, Callback callback)
+            public void process(Request request, org.eclipse.jetty.server.Response response, Callback callback)
             {
                 HttpVersion version = HttpVersion.fromString(request.getConnectionMetaData().getProtocol());
                 response.setStatus(version == HttpVersion.HTTP_2 ? HttpStatus.OK_200 : HttpStatus.INTERNAL_SERVER_ERROR_500);
@@ -220,15 +222,14 @@ public class HttpClientTransportOverHTTP2Test extends AbstractTest
             @Override
             public void process(Request request, org.eclipse.jetty.server.Response response, Callback callback)
             {
-                Callback.Completable completable = new Callback.Completable();
-                response.write(false, ByteBuffer.allocate(1), completable);
-                completable.whenComplete((r, x) ->
-                {
-                    if (x != null)
-                        callback.failed(x);
-                    else
-                        response.write(true, ByteBuffer.allocate(2), callback);
-                });
+                Callback.Completable.with(c -> response.write(false, ByteBuffer.allocate(1), c))
+                    .whenComplete((r, x) ->
+                    {
+                        if (x != null)
+                            callback.failed(x);
+                        else
+                            response.write(true, ByteBuffer.allocate(2), callback);
+                    });
             }
         });
 
@@ -386,7 +387,7 @@ public class HttpClientTransportOverHTTP2Test extends AbstractTest
         start(new Handler.Processor()
         {
             @Override
-            public void process(Request request, Response response, Callback callback)
+            public void process(Request request, org.eclipse.jetty.server.Response response, Callback callback)
             {
                 HttpURI httpURI = request.getHttpURI();
                 assertEquals(path, httpURI.getPath());
@@ -411,7 +412,7 @@ public class HttpClientTransportOverHTTP2Test extends AbstractTest
         start(new Handler.Processor()
         {
             @Override
-            public void process(Request request, Response response, Callback callback)
+            public void process(Request request, org.eclipse.jetty.server.Response response, Callback callback)
             {
                 HttpURI httpURI = request.getHttpURI();
                 assertEquals(path, httpURI.getPath());
@@ -636,12 +637,10 @@ public class HttpClientTransportOverHTTP2Test extends AbstractTest
             @Override
             public Stream.Listener onNewStream(Stream stream, HeadersFrame frame)
             {
-                int streamId = stream.getId();
                 MetaData.Response response = new MetaData.Response(HttpVersion.HTTP_2, HttpStatus.NO_CONTENT_204, HttpFields.EMPTY);
-                HeadersFrame responseFrame = new HeadersFrame(streamId, response, null, false);
-                Callback.Completable callback = new Callback.Completable();
-                stream.headers(responseFrame, callback);
-                callback.thenRun(() -> stream.data(new DataFrame(streamId, ByteBuffer.wrap(bytes), true), Callback.NOOP));
+                HeadersFrame responseFrame = new HeadersFrame(stream.getId(), response, null, false);
+                stream.headers(responseFrame)
+                    .thenAccept(s -> s.data(new DataFrame(s.getId(), ByteBuffer.wrap(bytes), true)));
                 return null;
             }
         });
@@ -669,12 +668,10 @@ public class HttpClientTransportOverHTTP2Test extends AbstractTest
                 HttpFields fields = HttpFields.build()
                     .put(":method", "get");
                 MetaData.Response response = new MetaData.Response(HttpVersion.HTTP_2, HttpStatus.OK_200, fields, 0);
-                int streamId = stream.getId();
-                HeadersFrame responseFrame = new HeadersFrame(streamId, response, null, false);
-                Callback.Completable callback = new Callback.Completable();
-                stream.headers(responseFrame, callback);
+                HeadersFrame responseFrame = new HeadersFrame(stream.getId(), response, null, false);
                 byte[] bytes = "hello".getBytes(StandardCharsets.US_ASCII);
-                callback.thenRun(() -> stream.data(new DataFrame(streamId, ByteBuffer.wrap(bytes), true), Callback.NOOP));
+                stream.headers(responseFrame)
+                    .thenAccept(s -> s.data(new DataFrame(s.getId(), ByteBuffer.wrap(bytes), true)));
                 return null;
             }
         });
@@ -689,6 +686,42 @@ public class HttpClientTransportOverHTTP2Test extends AbstractTest
             });
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testInputStreamResponseListener() throws Exception
+    {
+        var bytes = 100_000;
+        start(new ServerSessionListener()
+        {
+            @Override
+            public Stream.Listener onNewStream(Stream stream, HeadersFrame frame)
+            {
+                int streamId = stream.getId();
+                MetaData.Response response = new MetaData.Response(HttpVersion.HTTP_2, HttpStatus.OK_200, HttpFields.EMPTY);
+                HeadersFrame responseFrame = new HeadersFrame(streamId, response, null, false);
+                stream.headers(responseFrame)
+                    .thenAccept(s -> s.data(new DataFrame(s.getId(), ByteBuffer.wrap(new byte[bytes]), true)));
+                return null;
+            }
+        });
+
+        var requestCount = 10_000;
+        IntStream.range(0, requestCount).forEach(i ->
+        {
+            try
+            {
+                InputStreamResponseListener listener = new InputStreamResponseListener();
+                httpClient.newRequest("localhost", connector.getLocalPort()).headers(httpFields -> httpFields.put("X-Request-Id", Integer.toString(i))).send(listener);
+                Response response = listener.get(15, TimeUnit.SECONDS);
+                assertEquals(HttpStatus.OK_200, response.getStatus());
+                assertEquals(bytes, listener.getInputStream().readAllBytes().length);
+            }
+            catch (Exception e)
+            {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     @Disabled

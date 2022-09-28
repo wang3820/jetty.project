@@ -68,6 +68,7 @@ import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.HostPort;
 import org.eclipse.jetty.util.IteratingCallback;
+import org.eclipse.jetty.util.NanoTime;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.thread.Invocable;
 import org.slf4j.Logger;
@@ -1032,16 +1033,6 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
         @Override
         public boolean messageComplete()
         {
-            // TODO: Not sure what this logic was doing.
-//            HttpStreamOverHTTP1 stream = _stream.get();
-//            stream._chunk = ContentOLD.last(stream._chunk);
-//            if (_trailers != null && (stream._chunk == null || stream._chunk == Content.Chunk.EOF))
-//                stream._chunk = new Trailers(_trailers.asImmutable());
-//            else
-//                stream._chunk = ContentOLD.last(stream._chunk);
-//            return false;
-
-            // TODO: verify this new, simpler, logic.
             HttpStreamOverHTTP1 stream = _stream.get();
             if (stream._chunk != null)
                 throw new IllegalStateException();
@@ -1156,7 +1147,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
 
     protected class HttpStreamOverHTTP1 implements HttpStream
     {
-        private final long _nanoTimestamp = System.nanoTime();
+        private final long _nanoTime = NanoTime.now();
         private final long _id;
         private final String _method;
         private final HttpURI.Mutable _uri;
@@ -1166,14 +1157,12 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
         private MetaData.Request _request;
         private HttpField _upgrade = null;
         private Connection _upgradeConnection;
-
-        Content.Chunk _chunk;
+        private Content.Chunk _chunk;
         private boolean _connectionClose = false;
         private boolean _connectionKeepAlive = false;
         private boolean _connectionUpgrade = false;
         private boolean _unknownExpectation = false;
-        private boolean _expect100Continue = false;
-        private boolean _expect102Processing = false;
+        private boolean _expects100Continue = false;
         private List<String> _complianceViolations;
 
         protected HttpStreamOverHTTP1(String method, String uri, HttpVersion version)
@@ -1215,22 +1204,16 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
                     {
                         if (!HttpHeaderValue.parseCsvIndex(value, t ->
                         {
-                            switch (t)
+                            if (t == HttpHeaderValue.CONTINUE)
                             {
-                                case CONTINUE:
-                                    _expect100Continue = true;
-                                    return true;
-                                case PROCESSING:
-                                    _expect102Processing = true;
-                                    return true;
-                                default:
-                                    return false;
+                                _expects100Continue = true;
+                                return true;
                             }
+                            return false;
                         }, s -> false))
                         {
                             _unknownExpectation = true;
-                            _expect100Continue = false;
-                            _expect102Processing = false;
+                            _expects100Continue = false;
                         }
                         break;
                     }
@@ -1288,6 +1271,12 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
                 if (port == HttpScheme.getDefaultPort(_uri.getScheme()))
                     port = -1;
                 _uri.authority(hostPort.getHost(), port);
+            }
+
+            // Set path (if not already set)
+            if (_uri.getPath() == null)
+            {
+                _uri.path("/");
             }
 
             _request = new MetaData.Request(_method, _uri.asImmutable(), _version, _headerBuilder, _contentLength);
@@ -1385,7 +1374,7 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
         @Override
         public long getNanoTimeStamp()
         {
-            return _nanoTimestamp;
+            return _nanoTime;
         }
 
         @Override
@@ -1401,8 +1390,12 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
 
             Content.Chunk content = _chunk;
             _chunk = Content.Chunk.next(content);
-            if (content != null && _expect100Continue && content.hasRemaining())
-                _expect100Continue = false;
+
+            // Some content is read, but the 100 Continue interim
+            // response has not been sent yet, then don't bother
+            // sending it later, as the client already sent the content.
+            if (content != null && _expects100Continue && content.hasRemaining())
+                _expects100Continue = false;
 
             return content;
         }
@@ -1426,9 +1419,9 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
                 return;
             }
 
-            if (_expect100Continue)
+            if (_expects100Continue)
             {
-                _expect100Continue = false;
+                _expects100Continue = false;
                 send(_request, HttpGenerator.CONTINUE_100_INFO, false, null, Callback.NOOP);
             }
 
@@ -1457,15 +1450,18 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
             {
                 callback.failed(new IllegalStateException("Committed"));
             }
-            else if (response.getStatus() == 102 && !_expect102Processing)
+            else if (_expects100Continue)
             {
-                // silently discard
-                callback.succeeded();
-            }
-            else if (response.getStatus() != 100 && _expect100Continue)
-            {
-                // If we are still expecting a 100 continues when we commit then we can't be persistent
-                _generator.setPersistent(false);
+                if (response.getStatus() == HttpStatus.CONTINUE_100)
+                {
+                    _expects100Continue = false;
+                }
+                else
+                {
+                    // Expecting to send a 100 Continue response, but it's a different response,
+                    // then cannot be persistent because likely the client did not send the content.
+                    _generator.setPersistent(false);
+                }
             }
 
             if (_sendCallback.reset(_request, response, content, last, callback))
@@ -1589,11 +1585,11 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
             if (HttpConnection.this.upgrade(stream))
                 return;
 
-            // Finish consuming the request
-            // If we are still expecting
-            if (_expect100Continue)
+            if (_expects100Continue)
             {
-                // close to seek EOF
+                // No content was read, and no 100 Continue response was sent.
+                // Close the parser so that below it seeks EOF, not the next request.
+                _expects100Continue = false;
                 _parser.close();
             }
 
@@ -1615,8 +1611,6 @@ public class HttpConnection extends AbstractConnection implements Runnable, Writ
             // we need to organized further processing
             if (LOG.isDebugEnabled())
                 LOG.debug("non-current completion {}", this);
-
-            // TODO what about upgrade????
 
             // If we are looking for the next request
             if (_parser.isStart())

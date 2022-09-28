@@ -38,7 +38,6 @@ import org.eclipse.jetty.ee10.servlet.security.DefaultIdentityService;
 import org.eclipse.jetty.ee10.servlet.security.IdentityService;
 import org.eclipse.jetty.ee10.servlet.security.LoginService;
 import org.eclipse.jetty.ee10.servlet.security.UserIdentity;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.ArrayUtil;
 import org.eclipse.jetty.util.Loader;
 import org.eclipse.jetty.util.component.ContainerLifeCycle;
@@ -199,7 +198,7 @@ public class JAASLoginService extends ContainerLifeCycle implements LoginService
             if (callbackHandler instanceof DefaultCallbackHandler)
             {
                 DefaultCallbackHandler dch = (DefaultCallbackHandler)callbackHandler;
-                dch.setRequest(ServletContextRequest.getBaseRequest(request));
+                dch.setRequest(ServletContextRequest.getServletContextRequest(request));
                 dch.setCredential(credentials);
                 dch.setUserName(username);
             }

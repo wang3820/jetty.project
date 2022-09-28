@@ -15,7 +15,7 @@ package org.eclipse.jetty.util.resource;
 
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.FileSystemNotFoundException;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +23,11 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.eclipse.jetty.util.Index;
 import org.eclipse.jetty.util.URIUtil;
@@ -43,67 +48,9 @@ public class PathResource extends Resource
         .build();
 
     private final Path path;
-    private final Path alias;
     private final URI uri;
-
-    private Path checkAliasPath()
-    {
-        Path abs = path;
-
-        /* Catch situation where the Path class has already normalized
-         * the URI eg. input path "aa./foo.txt"
-         * from an #addPath(String) is normalized away during
-         * the creation of a Path object reference.
-         * If the URI is different then the Path.toUri() then
-         * we will just use the original URI to construct the
-         * alias reference Path.
-         */
-        if (!URIUtil.equalsIgnoreEncodings(uri, path.toUri()))
-        {
-            try
-            {
-                return Paths.get(uri).toRealPath();
-            }
-            catch (IOException ioe)
-            {
-                // If the toRealPath() call fails, then let
-                // the alias checking routines continue on
-                // to other techniques.
-                LOG.trace("IGNORED", ioe);
-            }
-        }
-
-        if (!abs.isAbsolute())
-            abs = path.toAbsolutePath();
-
-        // Any normalization difference means it's an alias,
-        // and we don't want to bother further to follow
-        // symlinks as it's an alias anyway.
-        Path normal = path.normalize();
-        if (!isSameName(abs, normal))
-            return normal;
-
-        try
-        {
-            if (Files.isSymbolicLink(path))
-                return path.getParent().resolve(Files.readSymbolicLink(path));
-            if (Files.exists(path))
-            {
-                Path real = abs.toRealPath();
-                if (!isSameName(abs, real))
-                    return real;
-            }
-        }
-        catch (IOException e)
-        {
-            LOG.trace("IGNORED", e);
-        }
-        catch (Exception e)
-        {
-            LOG.warn("bad alias ({} {}) for {}", e.getClass().getName(), e.getMessage(), path);
-        }
-        return null;
-    }
+    private boolean targetResolved = false;
+    private Path targetPath;
 
     /**
      * Test if the paths are the same name.
@@ -187,7 +134,6 @@ public class PathResource extends Resource
      * Must be an absolute URI using the <code>file</code> scheme.
      *
      * @param uri the URI to build this PathResource from.
-     * @throws IOException if unable to construct the PathResource from the URI.
      */
     PathResource(URI uri)
     {
@@ -196,43 +142,35 @@ public class PathResource extends Resource
 
     PathResource(URI uri, boolean bypassAllowedSchemeCheck)
     {
+        // normalize to referenced location, Paths.get() doesn't like "/bar/../foo/text.txt" style references
+        // and will return a Path that will not be found with `Files.exists()` or `Files.isDirectory()`
+        this(Paths.get(uri.normalize()), uri, bypassAllowedSchemeCheck);
+    }
+
+    PathResource(Path path)
+    {
+        this(path, path.toUri(), true);
+    }
+
+    PathResource(Path path, URI uri, boolean bypassAllowedSchemeCheck)
+    {
         if (!uri.isAbsolute())
             throw new IllegalArgumentException("not an absolute uri: " + uri);
         if (!bypassAllowedSchemeCheck && !ALLOWED_SCHEMES.contains(uri.getScheme()))
             throw new IllegalArgumentException("not an allowed scheme: " + uri);
 
-        try
-        {
-            this.path = Paths.get(uri);
-            String uriString = uri.toString();
-            if (Files.isDirectory(path) && !uriString.endsWith(URIUtil.SLASH))
-                uri = URI.create(uriString + URIUtil.SLASH);
-            this.uri = uri;
-            this.alias = checkAliasPath();
-        }
-        catch (FileSystemNotFoundException e)
-        {
-            throw new IllegalStateException("No FileSystem mounted for : " + uri, e);
-        }
+        String uriString = uri.toASCIIString();
+        if (Files.isDirectory(path) && !uriString.endsWith(URIUtil.SLASH))
+            uri = URIUtil.correctFileURI(URI.create(uriString + URIUtil.SLASH));
+
+        this.path = path;
+        this.uri = uri;
     }
 
     @Override
-    public boolean isSame(Resource resource)
+    public boolean exists()
     {
-        try
-        {
-            if (resource instanceof PathResource)
-            {
-                Path path = resource.getPath();
-                return Files.isSameFile(getPath(), path);
-            }
-        }
-        catch (IOException e)
-        {
-            if (LOG.isDebugEnabled())
-                LOG.debug("ignored", e);
-        }
-        return false;
+        return Files.exists(targetPath != null ? targetPath : path);
     }
 
     @Override
@@ -251,18 +189,7 @@ public class PathResource extends Resource
             return false;
         }
         PathResource other = (PathResource)obj;
-        if (path == null)
-        {
-            if (other.path != null)
-            {
-                return false;
-            }
-        }
-        else if (!path.equals(other.path))
-        {
-            return false;
-        }
-        return true;
+        return Objects.equals(path, other.path);
     }
 
     /**
@@ -273,6 +200,26 @@ public class PathResource extends Resource
         return path;
     }
 
+    public List<Resource> list()
+    {
+        if (!isDirectory())
+            return List.of(); // empty
+
+        try (Stream<Path> dirStream = Files.list(getPath()))
+        {
+            return dirStream.map(PathResource::new).collect(Collectors.toCollection(ArrayList::new));
+        }
+        catch (DirectoryIteratorException e)
+        {
+            LOG.debug("Directory list failure", e);
+        }
+        catch (IOException e)
+        {
+            LOG.debug("Directory list access failure", e);
+        }
+        return List.of(); // empty
+    }
+
     @Override
     public String getName()
     {
@@ -280,9 +227,12 @@ public class PathResource extends Resource
     }
 
     @Override
-    public boolean isMemoryMappable()
+    public String getFileName()
     {
-        return "file".equalsIgnoreCase(uri.getScheme());
+        Path fn = path.getFileName();
+        if (fn == null) // if path has no segments (eg "/")
+            return "";
+        return fn.toString();
     }
 
     @Override
@@ -294,10 +244,7 @@ public class PathResource extends Resource
     @Override
     public int hashCode()
     {
-        final int prime = 31;
-        int result = 1;
-        result = (prime * result) + ((path == null) ? 0 : path.hashCode());
-        return result;
+        return Objects.hashCode(path);
     }
 
     @Override
@@ -307,29 +254,87 @@ public class PathResource extends Resource
     }
 
     @Override
-    public boolean isAlias()
+    public URI getTargetURI()
     {
-        return this.alias != null;
+        if (!targetResolved)
+        {
+            targetPath = resolveTargetPath();
+            targetResolved = true;
+        }
+        if (targetPath == null)
+            return null;
+        return targetPath.toUri();
     }
 
-    /**
-     * The Alias as a Path.
-     * <p>
-     * Note: this cannot return the alias as a DIFFERENT path in 100% of situations,
-     * due to Java's internal Path/File normalization.
-     * </p>
-     *
-     * @return the alias as a path.
-     */
-    public Path getAliasPath()
+    private Path resolveTargetPath()
     {
-        return this.alias;
-    }
+        Path abs = path;
 
-    @Override
-    public URI getAlias()
-    {
-        return this.alias == null ? null : this.alias.toUri();
+        // TODO: is this a valid shortcut?
+        // If the path doesn't exist, then there's no alias to reference
+        if (!Files.exists(path))
+            return null;
+
+        /* Catch situation where the Path class has already normalized
+         * the URI eg. input path "aa./foo.txt"
+         * from an #resolve(String) is normalized away during
+         * the creation of a Path object reference.
+         * If the URI is different from the Path.toUri() then
+         * we will just use the original URI to construct the
+         * alias reference Path.
+         *
+         * We use the method `toUri(Path)` here, instead of
+         * Path.toUri() to ensure that the path contains
+         * a trailing slash if it's a directory, (something
+         * not all FileSystems seem to support)
+         */
+        if (!URIUtil.equalsIgnoreEncodings(uri, toUri(path)))
+        {
+            try
+            {
+                // Use normalized path to get past navigational references like "/bar/../foo/test.txt"
+                Path ref = Paths.get(uri.normalize());
+                return ref.toRealPath();
+            }
+            catch (IOException ioe)
+            {
+                // If the toRealPath() call fails, then let
+                // the alias checking routines continue on
+                // to other techniques.
+                LOG.trace("IGNORED", ioe);
+            }
+        }
+
+        if (!abs.isAbsolute())
+            abs = path.toAbsolutePath();
+
+        // Any normalization difference means it's an alias,
+        // and we don't want to bother further to follow
+        // symlinks as it's an alias anyway.
+        Path normal = path.normalize();
+        if (!isSameName(abs, normal))
+            return normal;
+
+        try
+        {
+            if (Files.isSymbolicLink(path))
+                return path.getParent().resolve(Files.readSymbolicLink(path));
+            if (Files.exists(path))
+            {
+                Path real = abs.toRealPath();
+                if (!isSameName(abs, real))
+                    return real;
+            }
+        }
+        catch (IOException e)
+        {
+            LOG.trace("IGNORED", e);
+        }
+        catch (Exception e)
+        {
+            LOG.warn("bad alias ({} {}) for {}", e.getClass().getName(), e.getMessage(), path);
+        }
+        return null;
     }
 
     @Override
@@ -340,6 +345,30 @@ public class PathResource extends Resource
             Files.walkFileTree(this.path, new TreeCopyFileVisitor(this.path, destination));
         else
             Files.copy(this.path, destination);
+    }
+
+    /**
+     * Ensure Path to URI is sane when it returns a directory reference.
+     *
+     * <p>
+     *     This is different than {@link Path#toUri()} in that not
+     *     all FileSystems seem to put the trailing slash on a directory
+     *     reference in the URI.
+     * </p>
+     *
+     * @param path the path to convert to URI
+     * @return the appropriate URI for the path
+     */
+    private static URI toUri(Path path)
+    {
+        URI pathUri = path.toUri();
+        String rawUri = path.toUri().toASCIIString();
+
+        if (Files.isDirectory(path) && !rawUri.endsWith("/"))
+        {
+            return URI.create(rawUri + '/');
+        }
+        return pathUri;
     }
 
     @Override

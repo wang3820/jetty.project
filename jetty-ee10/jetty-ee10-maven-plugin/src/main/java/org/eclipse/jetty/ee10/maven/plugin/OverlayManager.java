@@ -39,8 +39,7 @@ public class OverlayManager
         this.warPlugin = warPlugin;
     }
 
-    public void applyOverlays(MavenWebAppContext webApp)
-        throws Exception
+    public void applyOverlays(MavenWebAppContext webApp) throws IOException
     {
         List<Resource> resourceBases = new ArrayList<Resource>();
 
@@ -71,8 +70,7 @@ public class OverlayManager
      * Generate an ordered list of overlays
      */
     protected List<Overlay> getOverlays()
-        throws Exception
-    {        
+    {
         Set<Artifact> matchedWarArtifacts = new HashSet<Artifact>();
         List<Overlay> overlays = new ArrayList<Overlay>();
         
@@ -127,18 +125,13 @@ public class OverlayManager
      */
     protected  Resource unpackOverlay(Overlay overlay)
         throws IOException
-    {        
+    {
         if (overlay.getResource() == null)
             return null; //nothing to unpack
 
         //Get the name of the overlayed war and unpack it to a dir of the
         //same name in the temporary directory
-        String name = overlay.getResource().getName();
-        if (name.endsWith("!/"))
-            name = name.substring(0, name.length() - 2);
-        int i = name.lastIndexOf('/');
-        if (i > 0)
-            name = name.substring(i + 1, name.length());
+        String name = overlay.getResource().getFileName();
         name = name.replace('.', '_');
  
         File overlaysDir = new File(warPlugin.getProject().getBuild().getDirectory(), "jetty_overlays");

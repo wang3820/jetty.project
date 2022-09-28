@@ -29,8 +29,10 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import jakarta.servlet.RequestDispatcher;
@@ -2316,6 +2318,12 @@ public class ResponseTest
         }
 
         @Override
+        public HttpFields getTrailers()
+        {
+            return null;
+        }
+
+        @Override
         public long getTimeStamp()
         {
             return _now;
@@ -2418,9 +2426,14 @@ public class ResponseTest
         }
 
         @Override
-        public HttpFields.Mutable getOrCreateTrailers()
+        public Supplier<HttpFields> getTrailersSupplier()
         {
             return null;
+        }
+
+        @Override
+        public void setTrailersSupplier(Supplier<HttpFields> trailers)
+        {
         }
 
         @Override
@@ -2448,6 +2461,12 @@ public class ResponseTest
         @Override
         public void reset()
         {
+        }
+
+        @Override
+        public CompletableFuture<Void> writeInterim(int status, HttpFields headers)
+        {
+                return null;
         }
     }
 }

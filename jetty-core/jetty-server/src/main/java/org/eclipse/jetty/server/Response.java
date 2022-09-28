@@ -15,6 +15,8 @@ package org.eclipse.jetty.server;
 
 import java.nio.ByteBuffer;
 import java.util.ListIterator;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -51,7 +53,9 @@ public interface Response extends Content.Sink
 
     HttpFields.Mutable getHeaders();
 
-    HttpFields.Mutable getOrCreateTrailers();
+    Supplier<HttpFields> getTrailersSupplier();
+
+    void setTrailersSupplier(Supplier<HttpFields> trailers);
 
     boolean isCommitted();
 
@@ -59,13 +63,24 @@ public interface Response extends Content.Sink
 
     void reset();
 
-    default boolean writeTrailers(Content.Chunk chunk, Callback callback)
+    CompletableFuture<Void> writeInterim(int status, HttpFields headers);
+
+    // TODO: make it static, otherwise we must override it in Wrapper.
+    default boolean writeTrailers(Content.Chunk chunk, Callback ignored)
     {
         if (chunk instanceof Trailers trailers)
         {
-            getOrCreateTrailers().add(trailers.getTrailers());
-            write(true, null, callback);
-            return true;
+            HttpFields requestTrailers = trailers.getTrailers();
+            if (requestTrailers != null)
+            {
+                Supplier<HttpFields> supplier = getTrailersSupplier();
+                if (supplier != null)
+                {
+                    HttpFields responseTrailers = supplier.get();
+                    if (responseTrailers instanceof HttpFields.Mutable mutable)
+                        mutable.add(requestTrailers);
+                }
+            }
         }
         return false;
     }
@@ -145,7 +160,6 @@ public interface Response extends Content.Sink
             if (field.getHeader() == HttpHeader.SET_COOKIE)
             {
                 CookieCompliance compliance = httpConfiguration.getResponseCookieCompliance();
-                HttpCookie oldCookie;
                 if (field instanceof HttpCookie.SetCookieHttpField)
                 {
                     if (!HttpCookie.match(((HttpCookie.SetCookieHttpField)field).getHttpCookie(), cookie.getName(), cookie.getDomain(), cookie.getPath()))
@@ -192,8 +206,6 @@ public interface Response extends Content.Sink
 
     static void writeError(Request request, Response response, Callback callback, int status, String message, Throwable cause)
     {
-        // TODO what about 102 Processing?
-
         // Retrieve the Logger instance here, rather than having a
         // public field that will force a transitive dependency on SLF4J.
         Logger logger = LoggerFactory.getLogger(Response.class);
@@ -375,9 +387,15 @@ public interface Response extends Content.Sink
         }
 
         @Override
-        public HttpFields.Mutable getOrCreateTrailers()
+        public Supplier<HttpFields> getTrailersSupplier()
         {
-            return getWrapped().getOrCreateTrailers();
+            return getWrapped().getTrailersSupplier();
+        }
+
+        @Override
+        public void setTrailersSupplier(Supplier<HttpFields> trailers)
+        {
+            getWrapped().setTrailersSupplier(trailers);
         }
 
         @Override
@@ -402,6 +420,12 @@ public interface Response extends Content.Sink
         public void reset()
         {
             getWrapped().reset();
+        }
+
+        @Override
+        public CompletableFuture<Void> writeInterim(int status, HttpFields headers)
+        {
+            return getWrapped().writeInterim(status, headers);
         }
     }
 }

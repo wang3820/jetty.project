@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Exchanger;
 import java.util.concurrent.TimeUnit;
@@ -78,6 +79,7 @@ import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.FutureCallback;
 import org.eclipse.jetty.util.FuturePromise;
+import org.eclipse.jetty.util.NanoTime;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Disabled;
@@ -167,8 +169,7 @@ public class StreamResetTest extends AbstractTest
             {
                 MetaData.Response response = new MetaData.Response(HttpVersion.HTTP_2, 200, HttpFields.EMPTY);
                 HeadersFrame responseFrame = new HeadersFrame(stream.getId(), response, null, false);
-                Callback.Completable completable = new Callback.Completable();
-                stream.headers(responseFrame, completable);
+                CompletableFuture<Stream> completable = stream.headers(responseFrame);
                 stream.demand();
                 return new Stream.Listener()
                 {
@@ -177,15 +178,8 @@ public class StreamResetTest extends AbstractTest
                     {
                         Stream.Data data = stream.readData();
                         data.release();
-                        completable.thenRun(() ->
-                            stream.data(new DataFrame(stream.getId(), ByteBuffer.allocate(16), true), new Callback()
-                            {
-                                @Override
-                                public void succeeded()
-                                {
-                                    serverDataLatch.countDown();
-                                }
-                            }));
+                        completable.thenCompose(s -> s.data(new DataFrame(s.getId(), ByteBuffer.allocate(16), true)))
+                            .thenRun(serverDataLatch::countDown);
                     }
 
                     @Override
@@ -328,9 +322,8 @@ public class StreamResetTest extends AbstractTest
                 try
                 {
                     commitLatch.await(5, TimeUnit.SECONDS);
-                    Callback.Completable completable = new Callback.Completable();
-                    stream.reset(new ResetFrame(stream.getId(), ErrorCode.CANCEL_STREAM_ERROR.code), completable);
-                    completable.thenRun(resetLatch::countDown);
+                    stream.reset(new ResetFrame(stream.getId(), ErrorCode.CANCEL_STREAM_ERROR.code))
+                        .thenRun(resetLatch::countDown);
                 }
                 catch (InterruptedException x)
                 {
@@ -415,9 +408,8 @@ public class StreamResetTest extends AbstractTest
                 try
                 {
                     commitLatch.await(5, TimeUnit.SECONDS);
-                    Callback.Completable completable = new Callback.Completable();
-                    stream.reset(new ResetFrame(stream.getId(), ErrorCode.CANCEL_STREAM_ERROR.code), completable);
-                    completable.thenRun(resetLatch::countDown);
+                    stream.reset(new ResetFrame(stream.getId(), ErrorCode.CANCEL_STREAM_ERROR.code))
+                        .thenRun(resetLatch::countDown);
                 }
                 catch (InterruptedException x)
                 {
@@ -536,9 +528,10 @@ public class StreamResetTest extends AbstractTest
                 {
                     Stream.Data data = stream.readData();
                     data.release();
-                    stream.demand();
                     if (data.frame().isEndStream())
                         latch.get().countDown();
+                    else
+                        stream.demand();
                 }
             });
             Stream stream = promise.get(5, TimeUnit.SECONDS);
@@ -674,9 +667,10 @@ public class StreamResetTest extends AbstractTest
                 Stream.Data data = stream.readData();
                 dataQueue.offer(data);
                 // Do not consume the data yet.
-                stream.demand();
                 if (received.addAndGet(data.frame().getData().remaining()) == windowSize)
                     latch.countDown();
+                else
+                    stream.demand();
             }
         });
         Stream stream = promise.get(5, TimeUnit.SECONDS);
@@ -780,9 +774,10 @@ public class StreamResetTest extends AbstractTest
                 Stream.Data data = stream.readData();
                 dataQueue.offer(data);
                 // Do not consume the data yet.
-                stream.demand();
                 if (received.addAndGet(data.frame().getData().remaining()) == windowSize)
                     latch.countDown();
+                else
+                    stream.demand();
             }
         });
         Stream stream = promise.get(5, TimeUnit.SECONDS);
@@ -1049,8 +1044,7 @@ public class StreamResetTest extends AbstractTest
             {
                 MetaData.Response response = new MetaData.Response(HttpVersion.HTTP_2, 200, HttpFields.EMPTY);
                 HeadersFrame responseFrame = new HeadersFrame(stream.getId(), response, null, false);
-                Callback.Completable completable = new Callback.Completable();
-                stream.headers(responseFrame, completable);
+                stream.headers(responseFrame, Callback.NOOP);
                 return null;
             }
         }, http2Factory);
@@ -1080,11 +1074,10 @@ public class StreamResetTest extends AbstractTest
 
     private void waitUntilTCPCongested(WriteFlusher flusher) throws TimeoutException, InterruptedException
     {
-        long start = System.nanoTime();
+        long start = NanoTime.now();
         while (!flusher.isPending())
         {
-            long elapsed = System.nanoTime() - start;
-            if (TimeUnit.NANOSECONDS.toSeconds(elapsed) > 15)
+            if (NanoTime.secondsSince(start) > 15)
                 throw new TimeoutException();
             Thread.sleep(100);
         }

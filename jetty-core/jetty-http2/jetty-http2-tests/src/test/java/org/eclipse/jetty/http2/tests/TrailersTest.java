@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -174,19 +175,18 @@ public class TrailersTest extends AbstractTest
         Stream stream = streamPromise.get(5, TimeUnit.SECONDS);
 
         // Send some data.
-        Callback.Completable callback = new Callback.Completable();
-        stream.data(new DataFrame(stream.getId(), ByteBuffer.allocate(16), false), callback);
+        CompletableFuture<Stream> completable = stream.data(new DataFrame(stream.getId(), ByteBuffer.allocate(16), false));
 
-        assertTrue(trailerLatch.await(555, TimeUnit.SECONDS));
+        assertTrue(trailerLatch.await(5, TimeUnit.SECONDS));
 
         // Send the trailers.
-        callback.thenRun(() ->
+        completable.thenRun(() ->
         {
             HttpFields.Mutable trailerFields = HttpFields.build();
             trailerFields.put("X-Trailer", "true");
             MetaData trailers = new MetaData(HttpVersion.HTTP_2, trailerFields);
             HeadersFrame trailerFrame = new HeadersFrame(stream.getId(), trailers, null, true);
-            stream.headers(trailerFrame, Callback.NOOP);
+            stream.headers(trailerFrame);
         });
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
@@ -262,7 +262,8 @@ public class TrailersTest extends AbstractTest
             @Override
             public void process(Request request, Response response, Callback callback) throws Exception
             {
-                HttpFields.Mutable trailers = response.getOrCreateTrailers();
+                HttpFields.Mutable trailers = HttpFields.build();
+                response.setTrailersSupplier(() -> trailers);
                 Content.Sink.write(response, false, UTF_8.encode("hello_trailers"));
                 // Force the content to be sent above, and then only send the trailers below.
                 trailers.put(trailerName, trailerValue);
@@ -297,15 +298,17 @@ public class TrailersTest extends AbstractTest
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
-        assertEquals(3, frames.size(), frames.toString());
+        assertEquals(4, frames.size(), frames.toString());
 
         HeadersFrame headers = (HeadersFrame)frames.get(0);
         DataFrame data = (DataFrame)frames.get(1);
         HeadersFrame trailers = (HeadersFrame)frames.get(2);
+        DataFrame eof = (DataFrame)frames.get(3);
 
         assertFalse(headers.isEndStream());
         assertFalse(data.isEndStream());
         assertTrue(trailers.isEndStream());
+        assertTrue(eof.isEndStream());
         assertEquals(trailers.getMetaData().getFields().get(trailerName), trailerValue);
     }
 
@@ -328,18 +331,21 @@ public class TrailersTest extends AbstractTest
         session.newStream(requestFrame, promise, null);
         Stream stream = promise.get(5, TimeUnit.SECONDS);
         ByteBuffer data = ByteBuffer.wrap(StringUtil.getUtf8Bytes("hello"));
-        Callback.Completable completable = new Callback.Completable();
-        stream.data(new DataFrame(stream.getId(), data, false), completable);
         CountDownLatch failureLatch = new CountDownLatch(1);
-        completable.thenRun(() ->
-        {
-            // Invalid trailer: cannot contain pseudo headers.
-            HttpFields.Mutable trailerFields = HttpFields.build();
-            trailerFields.put(HttpHeader.C_METHOD, "GET");
-            MetaData trailer = new MetaData(HttpVersion.HTTP_2, trailerFields);
-            HeadersFrame trailerFrame = new HeadersFrame(stream.getId(), trailer, null, true);
-            stream.headers(trailerFrame, Callback.from(Callback.NOOP::succeeded, x -> failureLatch.countDown()));
-        });
+        stream.data(new DataFrame(stream.getId(), data, false))
+            .thenAccept(s ->
+            {
+                // Invalid trailer: cannot contain pseudo headers.
+                HttpFields.Mutable trailerFields = HttpFields.build();
+                trailerFields.put(HttpHeader.C_METHOD, "GET");
+                MetaData trailer = new MetaData(HttpVersion.HTTP_2, trailerFields);
+                s.headers(new HeadersFrame(s.getId(), trailer, null, true))
+                    .exceptionally(x ->
+                    {
+                        failureLatch.countDown();
+                        return s;
+                    });
+            });
         assertTrue(failureLatch.await(5, TimeUnit.SECONDS));
     }
 
@@ -380,19 +386,17 @@ public class TrailersTest extends AbstractTest
         });
         Stream stream = promise.get(5, TimeUnit.SECONDS);
         ByteBuffer data = ByteBuffer.wrap(StringUtil.getUtf8Bytes("hello"));
-        Callback.Completable completable = new Callback.Completable();
-        stream.data(new DataFrame(stream.getId(), data, false), completable);
-        completable.thenRun(() ->
-        {
-            // Disable checks for invalid headers.
-            ((HTTP2Session)session).getGenerator().setValidateHpackEncoding(false);
-            // Invalid trailer: cannot contain pseudo headers.
-            HttpFields.Mutable trailerFields = HttpFields.build();
-            trailerFields.put(HttpHeader.C_METHOD, "GET");
-            MetaData trailer = new MetaData(HttpVersion.HTTP_2, trailerFields);
-            HeadersFrame trailerFrame = new HeadersFrame(stream.getId(), trailer, null, true);
-            stream.headers(trailerFrame, Callback.NOOP);
-        });
+        stream.data(new DataFrame(stream.getId(), data, false))
+            .thenAccept(s ->
+            {
+                // Disable checks for invalid headers.
+                ((HTTP2Session)session).getGenerator().setValidateHpackEncoding(false);
+                // Invalid trailer: cannot contain pseudo headers.
+                HttpFields.Mutable trailerFields = HttpFields.build();
+                trailerFields.put(HttpHeader.C_METHOD, "GET");
+                MetaData trailer = new MetaData(HttpVersion.HTTP_2, trailerFields);
+                s.headers(new HeadersFrame(s.getId(), trailer, null, true));
+            });
 
         assertTrue(serverLatch.await(5, TimeUnit.SECONDS));
         assertTrue(clientLatch.await(5, TimeUnit.SECONDS));
@@ -406,6 +410,8 @@ public class TrailersTest extends AbstractTest
             @Override
             public void process(Request request, Response response, Callback callback)
             {
+                HttpFields.Mutable trailers = HttpFields.build();
+                response.setTrailersSupplier(() -> trailers);
                 Content.copy(request, response, response::writeTrailers, callback);
             }
         });

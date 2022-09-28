@@ -28,8 +28,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import jakarta.servlet.RequestDispatcher;
@@ -40,6 +42,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
+import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.CachingContentFactory;
 import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.HttpContent;
@@ -48,6 +51,7 @@ import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpHeaderValue;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.http.MimeTypes;
@@ -338,7 +342,7 @@ public class DefaultServlet extends HttpServlet
         boolean included = req.getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI) != null;
         try
         {
-            HttpContent content = _resourceService.getContent(pathInContext, ServletContextRequest.getBaseRequest(req));
+            HttpContent content = _resourceService.getContent(pathInContext, ServletContextRequest.getServletContextRequest(req));
             if (content == null || !content.getResource().exists())
             {
                 if (included)
@@ -363,7 +367,7 @@ public class DefaultServlet extends HttpServlet
                 if (coreResponse.isCommitted())
                 {
                     if (LOG.isDebugEnabled())
-                        LOG.debug("Response already committed for {}", coreRequest._coreRequest.getHttpURI());
+                        LOG.debug("Response already committed for {}", coreRequest._request.getHttpURI());
                     return;
                 }
 
@@ -415,14 +419,14 @@ public class DefaultServlet extends HttpServlet
         // TODO fully implement this class and move it to the top level
         // TODO Some methods are directed to core that probably should be intercepted
 
-        private final HttpServletRequest _request;
-        private final Request _coreRequest;
+        private final HttpServletRequest _servletRequest;
+        private final Request _request;
         private final HttpFields _httpFields;
 
         ServletCoreRequest(HttpServletRequest request)
         {
-            _request = request;
-            _coreRequest = ServletContextRequest.getBaseRequest(request);
+            _servletRequest = request;
+            _request = ServletContextRequest.getServletContextRequest(request);
 
             HttpFields.Mutable fields = HttpFields.build();
 
@@ -447,87 +451,93 @@ public class DefaultServlet extends HttpServlet
         }
 
         @Override
+        public HttpFields getTrailers()
+        {
+            return _request.getTrailers();
+        }
+
+        @Override
         public HttpURI getHttpURI()
         {
-            return _coreRequest.getHttpURI();
+            return _request.getHttpURI();
         }
 
         @Override
         public String getPathInContext()
         {
-            return URIUtil.addPaths(_request.getServletPath(), _request.getPathInfo());
+            return URIUtil.addPaths(_servletRequest.getServletPath(), _servletRequest.getPathInfo());
         }
 
         @Override
         public void demand(Runnable demandCallback)
         {
-            _coreRequest.demand(demandCallback);
+            _request.demand(demandCallback);
         }
 
         @Override
         public void fail(Throwable failure)
         {
-            _coreRequest.fail(failure);
+            _request.fail(failure);
         }
 
         @Override
         public String getId()
         {
-            return _request.getRequestId();
+            return _servletRequest.getRequestId();
         }
 
         @Override
         public Components getComponents()
         {
-            return _coreRequest.getComponents();
+            return _request.getComponents();
         }
 
         @Override
         public ConnectionMetaData getConnectionMetaData()
         {
-            return _coreRequest.getConnectionMetaData();
+            return _request.getConnectionMetaData();
         }
 
         @Override
         public String getMethod()
         {
-            return _request.getMethod();
+            return _servletRequest.getMethod();
         }
 
         @Override
         public Context getContext()
         {
-            return _coreRequest.getContext();
+            return _request.getContext();
         }
 
         @Override
         public long getTimeStamp()
         {
-            return _coreRequest.getTimeStamp();
+            return _request.getTimeStamp();
         }
 
         @Override
         public boolean isSecure()
         {
-            return _request.isSecure();
+            return _servletRequest.isSecure();
         }
 
         @Override
         public Content.Chunk read()
         {
-            return _coreRequest.read();
+            return _request.read();
         }
 
         @Override
         public boolean isPushSupported()
         {
-            return _coreRequest.isPushSupported();
+            return _request.isPushSupported();
         }
 
         @Override
         public void push(MetaData.Request request)
         {
-            _coreRequest.push(request);
+            this._request.push(request);
         }
 
         @Override
@@ -539,7 +549,7 @@ public class DefaultServlet extends HttpServlet
         @Override
         public TunnelSupport getTunnelSupport()
         {
-            return _coreRequest.getTunnelSupport();
+            return _request.getTunnelSupport();
         }
 
         @Override
@@ -550,30 +560,30 @@ public class DefaultServlet extends HttpServlet
         @Override
         public Object removeAttribute(String name)
         {
-            Object value = _request.getAttribute(name);
-            _request.removeAttribute(name);
+            Object value = _servletRequest.getAttribute(name);
+            _servletRequest.removeAttribute(name);
             return value;
         }
 
         @Override
         public Object setAttribute(String name, Object attribute)
         {
-            Object value = _request.getAttribute(name);
-            _request.setAttribute(name, attribute);
+            Object value = _servletRequest.getAttribute(name);
+            _servletRequest.setAttribute(name, attribute);
             return value;
         }
 
         @Override
         public Object getAttribute(String name)
         {
-            return _request.getAttribute(name);
+            return _servletRequest.getAttribute(name);
         }
 
         @Override
         public Set<String> getAttributeNameSet()
         {
             Set<String> set = new HashSet<>();
-            Enumeration<String> e = _request.getAttributeNames();
+            Enumeration<String> e = _servletRequest.getAttributeNames();
             while (e.hasMoreElements())
                 set.add(e.nextElement());
             return set;
@@ -582,9 +592,9 @@ public class DefaultServlet extends HttpServlet
         @Override
         public void clearAttributes()
         {
-            Enumeration<String> e = _request.getAttributeNames();
+            Enumeration<String> e = _servletRequest.getAttributeNames();
             while (e.hasMoreElements())
-                _request.removeAttribute(e.nextElement());
+                _servletRequest.removeAttribute(e.nextElement());
         }
     }
 
@@ -891,9 +901,14 @@ public class DefaultServlet extends HttpServlet
         }
 
         @Override
-        public HttpFields.Mutable getOrCreateTrailers()
+        public Supplier<HttpFields> getTrailersSupplier()
         {
             return null;
+        }
+
+        @Override
+        public void setTrailersSupplier(Supplier<HttpFields> trailers)
+        {
         }
 
         @Override
@@ -906,6 +921,12 @@ public class DefaultServlet extends HttpServlet
         public void reset()
         {
             _response.reset();
+        }
+
+        @Override
+        public CompletableFuture<Void> writeInterim(int status, HttpFields headers)
+        {
+            return null;
         }
     }
 
@@ -1015,6 +1036,48 @@ public class DefaultServlet extends HttpServlet
         }
 
         @Override
+        protected void writeHttpError(Request coreRequest, Response coreResponse, Callback callback, int statusCode)
+        {
+            writeHttpError(coreRequest, coreResponse, callback, statusCode, null, null);
+        }
+
+        @Override
+        protected void writeHttpError(Request coreRequest, Response coreResponse, Callback callback, Throwable cause)
+        {
+            int statusCode = HttpStatus.INTERNAL_SERVER_ERROR_500;
+            String reason = null;
+            if (cause instanceof BadMessageException badMessageException)
+            {
+                statusCode = badMessageException.getCode();
+                reason = badMessageException.getReason();
+            }
+            writeHttpError(coreRequest, coreResponse, callback, statusCode, reason, cause);
+        }
+
+        @Override
+        protected void writeHttpError(Request coreRequest, Response coreResponse, Callback callback, int statusCode, String reason, Throwable cause)
+        {
+            HttpServletRequest request = getServletRequest(coreRequest);
+            HttpServletResponse response = getServletResponse(coreResponse);
+            try
+            {
+                // TODO: not sure if this is allowed here.
+                if (cause != null)
+                    request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, cause);
+                response.sendError(statusCode, reason);
+            }
+            catch (IOException e)
+            {
+                // TODO: Need a better exception?
+                throw new RuntimeException(e);
+            }
+            finally
+            {
+                callback.succeeded();
+            }
+        }
+
+        @Override
         protected boolean passConditionalHeaders(Request request, Response response, HttpContent content, Callback callback) throws IOException
         {
             boolean included = getServletRequest(request).getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI) != null;
@@ -1026,7 +1089,7 @@ public class DefaultServlet extends HttpServlet
         private HttpServletRequest getServletRequest(Request request)
         {
             // TODO, this unwrapping is fragile
-            return ((ServletCoreRequest)request)._request;
+            return ((ServletCoreRequest)request)._servletRequest;
         }
 
         private HttpServletResponse getServletResponse(Response response)

@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.EventListener;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -86,9 +87,7 @@ import org.slf4j.LoggerFactory;
 public class ServletContextRequest extends ContextRequest implements Runnable
 {
     public static final String __MULTIPART_CONFIG_ELEMENT = "org.eclipse.jetty.multipartConfig";
-
     private static final Logger LOG = LoggerFactory.getLogger(ServletContextRequest.class);
-    private static final Collection<Locale> __defaultLocale = Collections.singleton(Locale.getDefault());
     private static final int INPUT_NONE = 0;
     private static final int INPUT_STREAM = 1;
     private static final int INPUT_READER = 2;
@@ -96,7 +95,7 @@ public class ServletContextRequest extends ContextRequest implements Runnable
     private static final Fields NO_PARAMS = new Fields(new Fields(), true);
     private static final Fields BAD_PARAMS = new Fields(new Fields(), true);
 
-    public static ServletContextRequest getBaseRequest(ServletRequest request)
+    public static ServletContextRequest getServletContextRequest(ServletRequest request)
     {
         if (request instanceof ServletApiRequest)
             return ((ServletApiRequest)request).getRequest();
@@ -113,18 +112,18 @@ public class ServletContextRequest extends ContextRequest implements Runnable
         if (request instanceof ServletApiRequest)
             return ((ServletApiRequest)request).getRequest();
 
-        return null;
+        throw new IllegalStateException("could not find %s for %s".formatted(ServletContextRequest.class.getSimpleName(), request));
     }
 
-    ServletChannel _servletChannel;
-    final ServletApiRequest _httpServletRequest;
+    private final List<ServletRequestAttributeListener> _requestAttributeListeners = new ArrayList<>();
+    private final ServletApiRequest _httpServletRequest;
     final ServletHandler.MappedServlet _mappedServlet;
-    ServletContextResponse _response;
-    final HttpInput _httpInput;
-    final String _pathInContext;
-    Charset _queryEncoding;
-
-    final List<ServletRequestAttributeListener> _requestAttributeListeners = new ArrayList<>();
+    private final HttpInput _httpInput;
+    private final String _pathInContext;
+    private final ServletChannel _servletChannel;
+    private ServletContextResponse _response;
+    private Charset _queryEncoding;
+    private HttpFields _trailers;
 
     protected ServletContextRequest(
         ServletContextHandler.ServletContextApi servletContextApi,
@@ -146,6 +145,17 @@ public class ServletContextRequest extends ContextRequest implements Runnable
     {
         _servletChannel.setCallback(callback);
         super.process(request, response, callback);
+    }
+
+    @Override
+    public HttpFields getTrailers()
+    {
+        return _trailers;
+    }
+
+    void setTrailers(HttpFields trailers)
+    {
+        _trailers = trailers;
     }
 
     @Override
@@ -636,15 +646,14 @@ public class ServletContextRequest extends ContextRequest implements Runnable
             if (_sessionManager == null)
                 throw new IllegalStateException("No SessionManager");
 
-            //TODO is this getBaseRequest or getRequest???
-            _sessionManager.newSession(ServletContextRequest.getBaseRequest(this), getRequestedSessionId(), this::setCoreSession);
+            _sessionManager.newSession(ServletContextRequest.this, getRequestedSessionId(), this::setCoreSession);
             if (_coreSession == null)
                 throw new IllegalStateException("Create session failed");
 
-            org.eclipse.jetty.http.HttpCookie cookie = _sessionManager.getSessionCookie(_coreSession, getContextPath(), isSecure());
+            var cookie = _sessionManager.getSessionCookie(_coreSession, getContextPath(), isSecure());
 
             if (cookie != null)
-                Response.replaceCookie(ServletContextRequest.getBaseRequest(_httpServletRequest).getResponse(), cookie);
+                Response.replaceCookie(getResponse(), cookie);
 
             return _coreSession.getAPISession();
         }
@@ -669,16 +678,13 @@ public class ServletContextRequest extends ContextRequest implements Runnable
             if (getSessionManager() == null)
                 throw new IllegalStateException("No SessionManager.");
 
-            session.renewId(ServletContextRequest.getBaseRequest(this));
+            session.renewId(ServletContextRequest.this);
             
             if (getRemoteUser() != null)
                 session.setAttribute(Session.SESSION_CREATED_SECURE, Boolean.TRUE);
             
             if (getSessionManager().isUsingCookies())
-            {
-                Response.replaceCookie(ServletContextRequest.getBaseRequest(_httpServletRequest).getResponse(),
-                    getSessionManager().getSessionCookie(session, getContextPath(), isSecure()));
-            }
+                Response.replaceCookie(getResponse(), getSessionManager().getSessionCookie(session, getContextPath(), isSecure()));
 
             return session.getId();
         }
@@ -689,7 +695,7 @@ public class ServletContextRequest extends ContextRequest implements Runnable
             if (getRequestedSessionId() == null || _coreSession == null)
                 return false;
             //check requestedId (which may have worker suffix) against the actual session id
-            return (getSessionManager().getSessionIdManager().getId(getRequestedSessionId()).equals(_coreSession.getId()));
+            return getSessionManager().getSessionIdManager().getId(getRequestedSessionId()).equals(_coreSession.getId());
         }
 
         @Override
@@ -1006,7 +1012,9 @@ public class ServletContextRequest extends ContextRequest implements Runnable
                 {
                     try
                     {
-                        _contentParameters =  FormFields.from(getRequest()).get();
+                        int maxKeys = getServletRequestState().getContextHandler().getMaxFormKeys();
+                        int maxContentSize = getServletRequestState().getContextHandler().getMaxFormContentSize();
+                        _contentParameters =  FormFields.from(getRequest(), maxKeys, maxContentSize).get();
                         if (_contentParameters == null || _contentParameters.isEmpty())
                             _contentParameters = NO_PARAMS;
                     }
@@ -1332,6 +1340,22 @@ public class ServletContextRequest extends ContextRequest implements Runnable
         public DispatcherType getDispatcherType()
         {
             return DispatcherType.REQUEST;
+        }
+
+        @Override
+        public Map<String, String> getTrailerFields()
+        {
+            HttpFields trailers = getTrailers();
+            if (trailers == null)
+                return Map.of();
+            Map<String, String> trailersMap = new HashMap<>();
+            for (HttpField field : trailers)
+            {
+                String key = field.getLowerCaseName();
+                // Servlet spec requires field names to be lower case.
+                trailersMap.merge(key, field.getValue(), (existing, value) -> existing + "," + value);
+            }
+            return trailersMap;
         }
     }
 }

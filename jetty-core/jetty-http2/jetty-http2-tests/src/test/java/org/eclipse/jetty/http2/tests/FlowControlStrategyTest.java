@@ -257,14 +257,16 @@ public abstract class FlowControlStrategyTest
                             Map<Integer, Integer> settings = new HashMap<>();
                             settings.put(SettingsFrame.INITIAL_WINDOW_SIZE, size);
                             stream.getSession().settings(new SettingsFrame(settings, false), Callback.NOOP);
+                            stream.demand();
                             // Do not release the data here.
                         }
                         else if (dataFrameCount > 1)
                         {
                             // Release the data.
                             data.release();
+                            if (!data.frame().isEndStream())
+                                stream.demand();
                         }
-                        stream.demand();
                     }
                 };
             }
@@ -287,14 +289,13 @@ public abstract class FlowControlStrategyTest
         Stream stream = promise.get(5, TimeUnit.SECONDS);
 
         // Send first chunk that exceeds the window.
-        Callback.Completable completable = new Callback.Completable();
-        stream.data(new DataFrame(stream.getId(), ByteBuffer.allocate(size * 2), false), completable);
+        CompletableFuture<Stream> completable = stream.data(new DataFrame(stream.getId(), ByteBuffer.allocate(size * 2), false));
         settingsLatch.await(5, TimeUnit.SECONDS);
 
-        completable.thenRun(() ->
+        completable.thenAccept(s ->
         {
             // Send the second chunk of data, must not arrive since we're flow control stalled on the client.
-            stream.data(new DataFrame(stream.getId(), ByteBuffer.allocate(size * 2), true), Callback.NOOP);
+            s.data(new DataFrame(s.getId(), ByteBuffer.allocate(size * 2), true));
         });
 
         assertFalse(dataLatch.await(1, TimeUnit.SECONDS));
@@ -339,9 +340,8 @@ public abstract class FlowControlStrategyTest
 
         Map<Integer, Integer> settings = new HashMap<>();
         settings.put(SettingsFrame.INITIAL_WINDOW_SIZE, windowSize);
-        Callback.Completable completable = new Callback.Completable();
-        session.settings(new SettingsFrame(settings, false), completable);
-        completable.thenRun(settingsLatch::countDown);
+        session.settings(new SettingsFrame(settings, false))
+            .thenRun(settingsLatch::countDown);
 
         assertTrue(settingsLatch.await(5, TimeUnit.SECONDS));
 
@@ -371,9 +371,10 @@ public abstract class FlowControlStrategyTest
                     {
                         // Consume totally.
                         data.release();
-                        stream.demand();
                         if (data.frame().isEndStream())
                             dataLatch.countDown();
+                        else
+                            stream.demand();
                     }
                     else
                     {
@@ -448,9 +449,10 @@ public abstract class FlowControlStrategyTest
                             {
                                 // Consume totally.
                                 data.release();
-                                stream.demand();
                                 if (data.frame().isEndStream())
                                     dataLatch.countDown();
+                                else
+                                    stream.demand();
                             }
                             else
                             {
@@ -560,9 +562,10 @@ public abstract class FlowControlStrategyTest
                 Stream.Data data = stream.readData();
                 // Do not consume the data to reduce the session window.
                 dataList1.add(data);
-                stream.demand();
                 if (data.frame().isEndStream())
                     prepareLatch.countDown();
+                else
+                    stream.demand();
             }
         });
         assertTrue(prepareLatch.await(5, TimeUnit.SECONDS));
@@ -574,8 +577,9 @@ public abstract class FlowControlStrategyTest
             @Override
             public void onDataAvailable(Stream stream)
             {
-                stream.readData();
-                stream.demand();
+                Stream.Data data = stream.readData();
+                if (!data.frame().isEndStream())
+                    stream.demand();
                 // Do not release it to stall flow control.
             }
         });
@@ -588,8 +592,9 @@ public abstract class FlowControlStrategyTest
             @Override
             public void onDataAvailable(Stream stream)
             {
-                stream.readData();
-                stream.demand();
+                Stream.Data data = stream.readData();
+                if (!data.frame().isEndStream())
+                    stream.demand();
                 // Do not release it to stall flow control.
             }
         });
@@ -604,9 +609,10 @@ public abstract class FlowControlStrategyTest
             {
                 Stream.Data data = stream.readData();
                 data.release();
-                stream.demand();
                 if (data.frame().isEndStream())
                     latch.countDown();
+                else
+                    stream.demand();
             }
         });
 
@@ -633,13 +639,8 @@ public abstract class FlowControlStrategyTest
             {
                 MetaData.Response metaData = new MetaData.Response(HttpVersion.HTTP_2, 200, HttpFields.EMPTY);
                 HeadersFrame responseFrame = new HeadersFrame(stream.getId(), metaData, null, false);
-                Callback.Completable completable = new Callback.Completable();
-                stream.headers(responseFrame, completable);
-                completable.thenRun(() ->
-                {
-                    DataFrame dataFrame = new DataFrame(stream.getId(), ByteBuffer.wrap(data), true);
-                    stream.data(dataFrame, Callback.NOOP);
-                });
+                stream.headers(responseFrame)
+                    .thenAccept(s -> s.data(new DataFrame(s.getId(), ByteBuffer.wrap(data), true)));
                 return null;
             }
         });
@@ -662,9 +663,10 @@ public abstract class FlowControlStrategyTest
                 frame.getData().get(bytes, received, remaining);
                 this.received += remaining;
                 data.release();
-                stream.demand();
                 if (frame.isEndStream())
                     latch.countDown();
+                else
+                    stream.demand();
             }
         });
 
@@ -682,8 +684,7 @@ public abstract class FlowControlStrategyTest
             {
                 MetaData metaData = new MetaData.Response(HttpVersion.HTTP_2, 200, HttpFields.EMPTY);
                 HeadersFrame responseFrame = new HeadersFrame(stream.getId(), metaData, null, false);
-                Callback.Completable completable = new Callback.Completable();
-                stream.headers(responseFrame, completable);
+                CompletableFuture<Stream> completable = stream.headers(responseFrame);
                 stream.demand();
                 return new Stream.Listener()
                 {
@@ -691,7 +692,13 @@ public abstract class FlowControlStrategyTest
                     public void onDataAvailable(Stream stream)
                     {
                         Stream.Data data = stream.readData();
-                        completable.thenRun(() -> stream.data(data.frame(), Callback.from(Callback.from(data::release), stream::demand)));
+                        completable.thenAccept(s -> s.data(data.frame())
+                            .whenComplete((r, x) ->
+                            {
+                                data.release();
+                                if (!data.frame().isEndStream())
+                                    stream.demand();
+                            }));
                     }
                 };
             }
@@ -716,9 +723,8 @@ public abstract class FlowControlStrategyTest
         ByteBuffer responseContent = ByteBuffer.wrap(responseData);
         MetaData.Request metaData = newRequest("GET", HttpFields.EMPTY);
         HeadersFrame requestFrame = new HeadersFrame(metaData, null, false);
-        Promise.Completable<Stream> completable = new Promise.Completable<>();
         CountDownLatch latch = new CountDownLatch(1);
-        session.newStream(requestFrame, completable, new Stream.Listener()
+        session.newStream(requestFrame, new Stream.Listener()
         {
             @Override
             public void onDataAvailable(Stream stream)
@@ -726,16 +732,16 @@ public abstract class FlowControlStrategyTest
                 Stream.Data data = stream.readData();
                 responseContent.put(data.frame().getData());
                 data.release();
-                stream.demand();
                 if (data.frame().isEndStream())
                     latch.countDown();
+                else
+                    stream.demand();
             }
-        });
-        completable.thenAccept(stream ->
+        })
+        .thenAccept(s ->
         {
             ByteBuffer requestContent = ByteBuffer.wrap(requestData);
-            DataFrame dataFrame = new DataFrame(stream.getId(), requestContent, true);
-            stream.data(dataFrame, Callback.NOOP);
+            s.data(new DataFrame(s.getId(), requestContent, true));
         });
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
@@ -760,8 +766,9 @@ public abstract class FlowControlStrategyTest
                     public void onDataAvailable(Stream stream)
                     {
                         // Read but do not release the Data.
-                        stream.readData();
-                        stream.demand();
+                        Stream.Data data = stream.readData();
+                        if (!data.frame().isEndStream())
+                            stream.demand();
                     }
                 };
             }
@@ -864,8 +871,9 @@ public abstract class FlowControlStrategyTest
                     public void onDataAvailable(Stream stream)
                     {
                         // Read but do not release the Data.
-                        stream.readData();
-                        stream.demand();
+                        Stream.Data data = stream.readData();
+                        if (!data.frame().isEndStream())
+                            stream.demand();
                     }
                 };
             }
@@ -1025,13 +1033,16 @@ public abstract class FlowControlStrategyTest
                     {
                         Stream.Data data = stream.readData();
                         dataList.add(data);
-                        stream.demand();
                         if (data.frame().isEndStream())
                         {
                             // Release the Data when the stream is already remotely closed.
                             dataList.forEach(Stream.Data::release);
                             MetaData.Response response = new MetaData.Response(HttpVersion.HTTP_2, HttpStatus.OK_200, HttpFields.EMPTY);
                             stream.headers(new HeadersFrame(stream.getId(), response, null, true), Callback.NOOP);
+                        }
+                        else
+                        {
+                            stream.demand();
                         }
                     }
                 };

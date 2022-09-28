@@ -14,6 +14,8 @@
 package org.eclipse.jetty.ee10.servlet.security.authentication;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import org.eclipse.jetty.ee10.servlet.security.Authentication;
 import org.eclipse.jetty.ee10.servlet.security.IdentityService;
@@ -23,6 +25,7 @@ import org.eclipse.jetty.ee10.servlet.security.SecurityHandler;
 import org.eclipse.jetty.ee10.servlet.security.ServerAuthException;
 import org.eclipse.jetty.ee10.servlet.security.UserAuthentication;
 import org.eclipse.jetty.ee10.servlet.security.UserIdentity;
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpFields.Mutable;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
@@ -160,9 +163,14 @@ public class DeferredAuthentication implements Authentication.Deferred
         }
 
         @Override
-        public Mutable getOrCreateTrailers()
+        public Supplier<HttpFields> getTrailersSupplier()
         {
             return null;
+        }
+
+        @Override
+        public void setTrailersSupplier(Supplier<HttpFields> trailers)
+        {
         }
 
         @Override
@@ -186,6 +194,12 @@ public class DeferredAuthentication implements Authentication.Deferred
         @Override
         public void reset()
         {
+        }
+
+        @Override
+        public CompletableFuture<Void> writeInterim(int status, HttpFields headers)
+        {
+            return null;
         }
     };
 }
