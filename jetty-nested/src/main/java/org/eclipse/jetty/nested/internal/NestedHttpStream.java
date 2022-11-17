@@ -19,7 +19,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.MetaData;
-import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.nested.api.NestedResponse;
 import org.eclipse.jetty.server.HttpStream;
@@ -110,24 +109,6 @@ public class NestedHttpStream implements HttpStream
     public boolean isCommitted()
     {
         return _committed.get();
-    }
-
-    @Override
-    public boolean isComplete()
-    {
-        return false;
-    }
-
-    @Override
-    public void setUpgradeConnection(Connection connection)
-    {
-        throw new UnsupportedOperationException("upgrade not supported");
-    }
-
-    @Override
-    public Connection upgrade()
-    {
-        return null;
     }
 
     @Override
