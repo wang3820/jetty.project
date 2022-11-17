@@ -44,11 +44,11 @@ import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpTester;
+import org.eclipse.jetty.http.ResourceHttpContentFactory;
 import org.eclipse.jetty.logging.StacklessLogging;
 import org.eclipse.jetty.server.AllowedResourceAliasChecker;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.LocalConnector;
-import org.eclipse.jetty.server.ResourceContentFactory;
 import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.SymlinkAllowedResourceAliasChecker;
@@ -115,7 +115,7 @@ public class DefaultServletTest
         URLClassLoader extraClassLoader = new URLClassLoader(urls, parentClassLoader);
 
         context = new ServletContextHandler();
-        context.setBaseResource(docRoot);
+        context.setBaseResourceAsPath(docRoot);
         context.setContextPath("/context");
         context.setWelcomeFiles(new String[]{"index.html", "index.jsp", "index.htm"});
         context.setClassLoader(extraClassLoader);
@@ -358,7 +358,7 @@ public class DefaultServletTest
         FS.ensureDirExists(docRoot.resolve("three"));
 
         String resBasePath = docRoot.toAbsolutePath().toString();
-        defholder.setInitParameter("resourceBase", resBasePath);
+        defholder.setInitParameter("baseResource", resBasePath);
 
         String req1 = """
             GET /context/one/deep/ HTTP/1.1\r
@@ -1703,7 +1703,7 @@ public class DefaultServletTest
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.OK_200));
         assertThat(response.getContent(), containsString("<h1>Hello World</h1>"));
 
-        ResourceContentFactory factory = (ResourceContentFactory)context.getServletContext().getAttribute("resourceCache");
+        ResourceHttpContentFactory factory = (ResourceHttpContentFactory)context.getServletContext().getAttribute("resourceCache");
 
         /*
         TODO: fix after HttpContent changes.
@@ -2090,7 +2090,6 @@ public class DefaultServletTest
     }
 
     @Test
-    @Disabled
     public void testGzip() throws Exception
     {
         FS.ensureDirExists(docRoot);
@@ -2156,7 +2155,6 @@ public class DefaultServletTest
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.OK_200));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_LENGTH, "9"));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_TYPE, "application/gzip"));
-        assertThat(response, not(containsHeader(HttpHeader.VARY)));
         assertThat(response, not(containsHeader(HttpHeader.CONTENT_ENCODING)));
         assertThat("Should not contain gzip variant", response, not(containsHeaderValue(HttpHeader.ETAG, etagGzip)));
         assertThat("Should have a different ETag", response, containsHeader(HttpHeader.ETAG));
@@ -2175,7 +2173,6 @@ public class DefaultServletTest
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.OK_200));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_LENGTH, "9"));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_TYPE, "application/gzip"));
-        assertThat(response, not(containsHeader(HttpHeader.VARY)));
         assertThat(response, not(containsHeader(HttpHeader.CONTENT_ENCODING)));
         assertThat("Should not contain gzip variant", response, not(containsHeaderValue(HttpHeader.ETAG, etagGzip)));
         assertThat("Should have a different ETag", response, containsHeader(HttpHeader.ETAG));
@@ -2243,7 +2240,6 @@ public class DefaultServletTest
     }
 
     @Test
-    @Disabled
     public void testCachedGzip() throws Exception
     {
         FS.ensureDirExists(docRoot);
@@ -2314,7 +2310,6 @@ public class DefaultServletTest
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.OK_200));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_LENGTH, "9"));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_TYPE, "application/gzip"));
-        assertThat(response, not(containsHeader(HttpHeader.VARY)));
         assertThat(response, not(containsHeader(HttpHeader.CONTENT_ENCODING)));
         assertThat("Should not contain gzip variant", response, not(containsHeaderValue(HttpHeader.ETAG, etagGzip)));
         assertThat("Should have a different ETag", response, containsHeader(HttpHeader.ETAG));
@@ -2371,7 +2366,6 @@ public class DefaultServletTest
     }
 
     @Test
-    @Disabled
     public void testBrotli() throws Exception
     {
         Files.writeString(docRoot.resolve("data0.txt"), "Hello Text 0", UTF_8);
@@ -2435,7 +2429,6 @@ public class DefaultServletTest
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.OK_200));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_LENGTH, "11"));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_TYPE, "application/brotli"));
-        assertThat(response, not(containsHeader(HttpHeader.VARY)));
         assertThat(response, not(containsHeader(HttpHeader.CONTENT_ENCODING)));
         assertThat("Should not contain br variant", response, not(containsHeaderValue(HttpHeader.ETAG, etagBr)));
         assertThat("Should have a different ETag", response, containsHeader(HttpHeader.ETAG));
@@ -2454,7 +2447,6 @@ public class DefaultServletTest
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.OK_200));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_LENGTH, "11"));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_TYPE, "application/brotli"));
-        assertThat(response, not(containsHeader(HttpHeader.VARY)));
         assertThat(response, not(containsHeader(HttpHeader.CONTENT_ENCODING)));
         assertThat("Should not contain br variant", response, not(containsHeaderValue(HttpHeader.ETAG, etagBr)));
         assertThat("Should have a different ETag", response, containsHeader(HttpHeader.ETAG));
@@ -2511,7 +2503,6 @@ public class DefaultServletTest
     }
 
     @Test
-    @Disabled
     public void testCachedBrotli() throws Exception
     {
         Files.writeString(docRoot.resolve("data0.txt"), "Hello Text 0", UTF_8);
@@ -2579,7 +2570,6 @@ public class DefaultServletTest
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.OK_200));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_LENGTH, "11"));
         assertThat(response, containsHeaderValue(HttpHeader.CONTENT_TYPE, "application/brotli"));
-        assertThat(response, not(containsHeader(HttpHeader.VARY)));
         assertThat(response, not(containsHeader(HttpHeader.CONTENT_ENCODING)));
         assertThat("Should not contain br variant", response, not(containsHeaderValue(HttpHeader.ETAG, etagBr)));
         assertThat("Should have a different ETag", response, containsHeader(HttpHeader.ETAG));
@@ -2636,7 +2626,6 @@ public class DefaultServletTest
     }
 
     @Test
-    @Disabled
     public void testDefaultBrotliOverGzip() throws Exception
     {
         Files.writeString(docRoot.resolve("data0.txt"), "Hello Text 0", UTF_8);
@@ -2685,7 +2674,6 @@ public class DefaultServletTest
     }
 
     @Test
-    @Disabled
     public void testCustomCompressionFormats() throws Exception
     {
         Files.writeString(docRoot.resolve("data0.txt"), "Hello Text 0", UTF_8);
@@ -2736,7 +2724,6 @@ public class DefaultServletTest
     }
 
     @Test
-    @Disabled
     public void testProgrammaticCustomCompressionFormats() throws Exception
     {
         Files.writeString(docRoot.resolve("data0.txt"), "Hello Text 0", UTF_8);
@@ -2744,13 +2731,22 @@ public class DefaultServletTest
         Files.writeString(docRoot.resolve("data0.txt.gz"), "fake gzip", UTF_8);
         Files.writeString(docRoot.resolve("data0.txt.bz2"), "fake bzip2", UTF_8);
 
-        ResourceService resourceService = new ResourceService();
-        resourceService.setPrecompressedFormats(List.of(
-                new CompressedContentFormat("bzip2", ".bz2"),
-                new CompressedContentFormat("gzip", ".gz"),
-                new CompressedContentFormat("br", ".br")
-        ));
-        ServletHolder defholder = new ServletHolder(new DefaultServlet()); // TODO: how to integrate resource service / precompressed format
+        DefaultServlet defaultServlet = new DefaultServlet();
+        ServletHolder defholder = new ServletHolder(defaultServlet)
+        {
+            @Override
+            public void initialize() throws Exception
+            {
+                super.initialize();
+                ResourceService resourceService = defaultServlet.getResourceService();
+                resourceService.setPrecompressedFormats(List.of(
+                    new CompressedContentFormat("bzip2", ".bz2"),
+                    new CompressedContentFormat("gzip", ".gz"),
+                    new CompressedContentFormat("br", ".br")
+                ));
+            }
+        };
+
         context.addServlet(defholder, "/");
         defholder.setInitParameter("resourceBase", docRoot.toString());
 
@@ -2827,6 +2823,7 @@ public class DefaultServletTest
         defholder.setInitParameter("maxCacheSize", "4096");
         defholder.setInitParameter("maxCachedFileSize", "25");
         defholder.setInitParameter("maxCachedFiles", "100");
+        defholder.setInitParameter("cacheValidationTime", "0");
 
         String rawResponse;
         HttpTester.Response response;
@@ -2910,7 +2907,6 @@ public class DefaultServletTest
         "Hello World",
         "Now is the time for all good men to come to the aid of the party"
     })
-    @Disabled
     public void testIfETag(String content) throws Exception
     {
         Files.writeString(docRoot.resolve("file.txt"), content, UTF_8);
@@ -2953,7 +2949,7 @@ public class DefaultServletTest
             Connection:close\r
             If-None-Match: wibble,@ETAG@,wobble\r
             \r
-            """.replace("@ETAG", etag));
+            """.replace("@ETAG@", etag));
         response = HttpTester.parseResponse(rawResponse);
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.NOT_MODIFIED_304));
 
@@ -2983,7 +2979,7 @@ public class DefaultServletTest
             Connection:close\r
             If-Match: @ETAG@\r
             \r
-            """.replace("@ETAG", etag));
+            """.replace("@ETAG@", etag));
         response = HttpTester.parseResponse(rawResponse);
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.OK_200));
 
@@ -2993,7 +2989,7 @@ public class DefaultServletTest
             Connection:close\r
             If-Match: wibble,@ETAG@,wobble\r
             \r
-            """.replace("@ETAG", etag));
+            """.replace("@ETAG@", etag));
         response = HttpTester.parseResponse(rawResponse);
         assertThat(response.toString(), response.getStatus(), is(HttpStatus.OK_200));
 

@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.util.FormRequestContent;
 import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.tests.hometester.JettyHomeTester;
 import org.eclipse.jetty.util.Fields;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -136,6 +137,56 @@ public class DemoModulesTests extends AbstractJettyHomeTest
                 assertThat(response.getContentAsString(), not(containsString("<%")));
 
 
+            }
+        }
+    }
+    
+    @ParameterizedTest
+    @MethodSource("provideEnvironmentsToTest")
+    public void testJaasDemo(String env) throws Exception
+    {
+        Path jettyBase = newTestJettyBaseDirectory();
+        String jettyVersion = System.getProperty("jettyVersion");
+        JettyHomeTester distribution = JettyHomeTester.Builder.newInstance()
+                .jettyVersion(jettyVersion)
+                .jettyBase(jettyBase)
+                .mavenLocalRepository(System.getProperty("mavenRepoPath"))
+                .build();
+
+        int httpPort = distribution.freePort();
+        int httpsPort = distribution.freePort();
+        assertThat("httpPort != httpsPort", httpPort, is(not(httpsPort)));
+
+        String[] argsConfig = {
+                "--add-modules=http," + toEnvironment("demos", env)
+        };
+        
+        String baseURI = "http://localhost:%d/%s-test-jaas".formatted(httpPort, env);
+
+        try (JettyHomeTester.Run runConfig = distribution.start(argsConfig))
+        {
+            assertTrue(runConfig.awaitFor(START_TIMEOUT, TimeUnit.SECONDS));
+            assertEquals(0, runConfig.getExitValue());
+
+            String[] argsStart = 
+            {
+                    "jetty.http.port=" + httpPort,
+                    "jetty.httpConfig.port=" + httpsPort,
+                    "jetty.ssl.port=" + httpsPort
+            };
+
+            try (JettyHomeTester.Run runStart = distribution.start(argsStart))
+            {
+                assertTrue(runStart.awaitConsoleLogsFor("Started oejs.Server@", START_TIMEOUT, TimeUnit.SECONDS));
+
+                startHttpClient();
+                ContentResponse response = client.GET(baseURI + "/auth.html");
+                Fields fields = new Fields();
+                fields.put("j_username", "me");
+                fields.put("j_password", "me");
+                response = client.FORM(baseURI + "/j_security_check", fields);
+                assertEquals(HttpStatus.OK_200, response.getStatus(), new ResponseDetails(response));;
+                assertThat(response.getContentAsString(), containsString("SUCCESS!"));
             }
         }
     }

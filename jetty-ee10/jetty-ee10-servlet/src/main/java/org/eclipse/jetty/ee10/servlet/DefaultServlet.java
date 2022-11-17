@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.file.InvalidPathException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.Enumeration;
@@ -34,6 +35,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -43,29 +45,27 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.eclipse.jetty.http.BadMessageException;
-import org.eclipse.jetty.http.CachingContentFactory;
 import org.eclipse.jetty.http.CompressedContentFormat;
+import org.eclipse.jetty.http.FileMappingHttpContentFactory;
 import org.eclipse.jetty.http.HttpContent;
-import org.eclipse.jetty.http.HttpContentWrapper;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpHeaderValue;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
-import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.http.MimeTypes;
+import org.eclipse.jetty.http.PreCompressedHttpContentFactory;
+import org.eclipse.jetty.http.ResourceHttpContentFactory;
+import org.eclipse.jetty.http.ValidatingCachingHttpContentFactory;
 import org.eclipse.jetty.io.ByteBufferInputStream;
-import org.eclipse.jetty.io.Content;
-import org.eclipse.jetty.server.Components;
-import org.eclipse.jetty.server.ConnectionMetaData;
-import org.eclipse.jetty.server.Context;
+import org.eclipse.jetty.io.ByteBufferPool;
+import org.eclipse.jetty.io.NoopByteBufferPool;
 import org.eclipse.jetty.server.HttpStream;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.ResourceContentFactory;
 import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.server.TunnelSupport;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.Blocker;
 import org.eclipse.jetty.util.BufferUtil;
@@ -74,6 +74,7 @@ import org.eclipse.jetty.util.IO;
 import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
+import org.eclipse.jetty.util.resource.Resources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,9 +90,13 @@ public class DefaultServlet extends HttpServlet
 
     private ResourceFactory.Closeable _resourceFactory;
     private Resource _baseResource;
-    private boolean _useFileMappedBuffer = false;
 
     private boolean _isPathInfoOnly = false;
+
+    public ResourceService getResourceService()
+    {
+        return _resourceService;
+    }
 
     @Override
     public void init() throws ServletException
@@ -116,23 +121,30 @@ public class DefaultServlet extends HttpServlet
             }
         }
 
-        // TODO: should this come from context?
-        MimeTypes mimeTypes = new MimeTypes();
-        // TODO: this is configured further down below - see _resourceService.setPrecompressedFormats
-        List<CompressedContentFormat> precompressedFormats = List.of();
+        List<CompressedContentFormat> precompressedFormats = parsePrecompressedFormats(getInitParameter("precompressed"),
+            getInitBoolean("gzip"), _resourceService.getPrecompressedFormats());
 
-        _useFileMappedBuffer = getInitBoolean("useFileMappedBuffer", _useFileMappedBuffer);
-        ResourceContentFactory resourceContentFactory = new ResourceContentFactory(ResourceFactory.of(_baseResource), mimeTypes, precompressedFormats);
-        CachingContentFactory cached = new CachingContentFactory(resourceContentFactory, _useFileMappedBuffer);
-
-        int maxCacheSize = getInitInt("maxCacheSize", -2);
-        int maxCachedFileSize = getInitInt("maxCachedFileSize", -2);
-        int maxCachedFiles = getInitInt("maxCachedFiles", -2);
-
-        try
+        // Try to get factory from ServletContext attribute.
+        HttpContent.Factory contentFactory = (HttpContent.Factory)getServletContext().getAttribute(HttpContent.Factory.class.getName());
+        if (contentFactory == null)
         {
-            if (maxCachedFiles != -2 || maxCacheSize != -2 || maxCachedFileSize != -2)
+            MimeTypes mimeTypes = servletContextHandler.getMimeTypes();
+            contentFactory = new ResourceHttpContentFactory(ResourceFactory.of(_baseResource), mimeTypes);
+            contentFactory = new PreCompressedHttpContentFactory(contentFactory, precompressedFormats);
+
+            if (getInitBoolean("useFileMappedBuffer", false))
+                contentFactory = new FileMappingHttpContentFactory(contentFactory);
+
+            int maxCacheSize = getInitInt("maxCacheSize", -2);
+            int maxCachedFileSize = getInitInt("maxCachedFileSize", -2);
+            int maxCachedFiles = getInitInt("maxCachedFiles", -2);
+            long cacheValidationTime = getInitParameter("cacheValidationTime") != null ? Long.parseLong(getInitParameter("cacheValidationTime")) : -2;
+            if (maxCachedFiles != -2 || maxCacheSize != -2 || maxCachedFileSize != -2 || cacheValidationTime != -2)
             {
+                ByteBufferPool byteBufferPool = getByteBufferPool(servletContextHandler);
+                ValidatingCachingHttpContentFactory cached = new ValidatingCachingHttpContentFactory(contentFactory,
+                    (cacheValidationTime > -2) ? cacheValidationTime : Duration.ofSeconds(1).toMillis(), byteBufferPool);
+                contentFactory = cached;
                 if (maxCacheSize >= 0)
                     cached.setMaxCacheSize(maxCacheSize);
                 if (maxCachedFileSize >= -1)
@@ -141,15 +153,7 @@ public class DefaultServlet extends HttpServlet
                     cached.setMaxCachedFiles(maxCachedFiles);
             }
         }
-        catch (Exception e)
-        {
-            LOG.warn("Unable to setup CachedContentFactory", e);
-            throw new UnavailableException(e.toString());
-        }
-
-        String resourceCache = getInitParameter("resourceCache");
-        getServletContext().setAttribute(resourceCache == null ? "resourceCache" : resourceCache, cached);
-        _resourceService.setContentFactory(cached);
+        _resourceService.setHttpContentFactory(contentFactory);
 
         if (servletContextHandler.getWelcomeFiles() == null)
             servletContextHandler.setWelcomeFiles(new String[]{"index.html", "index.jsp"});
@@ -157,7 +161,7 @@ public class DefaultServlet extends HttpServlet
         _resourceService.setAcceptRanges(getInitBoolean("acceptRanges", _resourceService.isAcceptRanges()));
         _resourceService.setDirAllowed(getInitBoolean("dirAllowed", _resourceService.isDirAllowed()));
         _resourceService.setRedirectWelcome(getInitBoolean("redirectWelcome", _resourceService.isRedirectWelcome()));
-        _resourceService.setPrecompressedFormats(parsePrecompressedFormats(getInitParameter("precompressed"), getInitBoolean("gzip"), _resourceService.getPrecompressedFormats()));
+        _resourceService.setPrecompressedFormats(precompressedFormats);
         _resourceService.setEtags(getInitBoolean("etags", _resourceService.isEtags()));
 
         _isPathInfoOnly = getInitBoolean("pathInfoOnly", _isPathInfoOnly);
@@ -171,16 +175,16 @@ public class DefaultServlet extends HttpServlet
             _welcomeServlets = getInitBoolean("welcomeServlets", _welcomeServlets);
 
         // Use the servers default stylesheet unless there is one explicitly set by an init param.
-        _resourceService.setStylesheet(servletContextHandler.getServer().getDefaultStyleSheet());
+        _resourceService.setStyleSheet(servletContextHandler.getServer().getDefaultStyleSheet());
         String stylesheetParam = getInitParameter("stylesheet");
         if (stylesheetParam != null)
         {
             try
             {
                 Resource stylesheet = _resourceFactory.newResource(stylesheetParam);
-                if (stylesheet.exists())
+                if (Resources.isReadableFile(stylesheet))
                 {
-                    _resourceService.setStylesheet(stylesheet);
+                    _resourceService.setStyleSheet(stylesheet);
                 }
                 else
                 {
@@ -227,6 +231,17 @@ public class DefaultServlet extends HttpServlet
 
         if (LOG.isDebugEnabled())
             LOG.debug("base resource = {}", _baseResource);
+    }
+
+    private static ByteBufferPool getByteBufferPool(ContextHandler contextHandler)
+    {
+        if (contextHandler == null)
+            return new NoopByteBufferPool();
+        Server server = contextHandler.getServer();
+        if (server == null)
+            return new NoopByteBufferPool();
+        ByteBufferPool byteBufferPool = server.getBean(ByteBufferPool.class);
+        return (byteBufferPool == null) ? new NoopByteBufferPool() : byteBufferPool;
     }
 
     private String getInitParameter(String name, String... deprecated)
@@ -343,7 +358,7 @@ public class DefaultServlet extends HttpServlet
         try
         {
             HttpContent content = _resourceService.getContent(pathInContext, ServletContextRequest.getServletContextRequest(req));
-            if (content == null || !content.getResource().exists())
+            if (content == null || Resources.missing(content.getResource()))
             {
                 if (included)
                 {
@@ -367,7 +382,7 @@ public class DefaultServlet extends HttpServlet
                 if (coreResponse.isCommitted())
                 {
                     if (LOG.isDebugEnabled())
-                        LOG.debug("Response already committed for {}", coreRequest._request.getHttpURI());
+                        LOG.debug("Response already committed for {}", coreRequest.getHttpURI());
                     return;
                 }
 
@@ -414,19 +429,19 @@ public class DefaultServlet extends HttpServlet
         doGet(req, resp);
     }
 
-    private static class ServletCoreRequest implements Request
+    private static class ServletCoreRequest extends Request.Wrapper
     {
         // TODO fully implement this class and move it to the top level
         // TODO Some methods are directed to core that probably should be intercepted
 
         private final HttpServletRequest _servletRequest;
-        private final Request _request;
         private final HttpFields _httpFields;
+        private final HttpURI _uri;
 
         ServletCoreRequest(HttpServletRequest request)
         {
+            super(ServletContextRequest.getServletContextRequest(request));
             _servletRequest = request;
-            _request = ServletContextRequest.getServletContextRequest(request);
 
             HttpFields.Mutable fields = HttpFields.build();
 
@@ -442,6 +457,9 @@ public class DefaultServlet extends HttpServlet
                 }
             }
             _httpFields = fields.asImmutable();
+            _uri = (request.getDispatcherType() == DispatcherType.REQUEST)
+                ? getWrapped().getHttpURI()
+                : Request.newHttpURIFrom(getWrapped(), URIUtil.addPaths(_servletRequest.getServletPath(), _servletRequest.getPathInfo()));
         }
 
         @Override
@@ -451,33 +469,9 @@ public class DefaultServlet extends HttpServlet
         }
 
         @Override
-        public HttpFields getTrailers()
-        {
-            return _request.getTrailers();
-        }
-
-        @Override
         public HttpURI getHttpURI()
         {
-            return _request.getHttpURI();
-        }
-
-        @Override
-        public String getPathInContext()
-        {
-            return URIUtil.addPaths(_servletRequest.getServletPath(), _servletRequest.getPathInfo());
-        }
-
-        @Override
-        public void demand(Runnable demandCallback)
-        {
-            _request.demand(demandCallback);
-        }
-
-        @Override
-        public void fail(Throwable failure)
-        {
-            _request.fail(failure);
+            return _uri;
         }
 
         @Override
@@ -487,33 +481,9 @@ public class DefaultServlet extends HttpServlet
         }
 
         @Override
-        public Components getComponents()
-        {
-            return _request.getComponents();
-        }
-
-        @Override
-        public ConnectionMetaData getConnectionMetaData()
-        {
-            return _request.getConnectionMetaData();
-        }
-
-        @Override
         public String getMethod()
         {
             return _servletRequest.getMethod();
-        }
-
-        @Override
-        public Context getContext()
-        {
-            return _request.getContext();
-        }
-
-        @Override
-        public long getTimeStamp()
-        {
-            return _request.getTimeStamp();
         }
 
         @Override
@@ -523,33 +493,9 @@ public class DefaultServlet extends HttpServlet
         }
 
         @Override
-        public Content.Chunk read()
-        {
-            return _request.read();
-        }
-
-        @Override
-        public boolean isPushSupported()
-        {
-            return _request.isPushSupported();
-        }
-
-        @Override
-        public void push(MetaData.Request request)
-        {
-            this._request.push(request);
-        }
-
-        @Override
         public boolean addErrorListener(Predicate<Throwable> onError)
         {
             return false;
-        }
-
-        @Override
-        public TunnelSupport getTunnelSupport()
-        {
-            return _request.getTunnelSupport();
         }
 
         @Override
@@ -957,24 +903,28 @@ public class DefaultServlet extends HttpServlet
                 return null;
             }
 
-            String requestTarget = isPathInfoOnly() ? request.getPathInfo() : coreRequest.getPathInContext();
+            String pathInContext = Request.getPathInContext(coreRequest);
+            String requestTarget = isPathInfoOnly() ? request.getPathInfo() : pathInContext;
 
-            Resource base = _baseResource.resolve(requestTarget);
             String welcomeServlet = null;
-            for (String welcome : welcomes)
+            Resource base = _baseResource.resolve(requestTarget);
+            if (Resources.isReadableDirectory(base))
             {
-                Resource welcomePath = base.resolve(welcome);
-                String welcomeInContext = URIUtil.addPaths(coreRequest.getPathInContext(), welcome);
-
-                if (welcomePath != null && welcomePath.exists())
-                    return welcomeInContext;
-
-                if ((_welcomeServlets || _welcomeExactServlets) && welcomeServlet == null)
+                for (String welcome : welcomes)
                 {
-                    ServletHandler.MappedServlet entry = _servletContextHandler.getServletHandler().getMappedServlet(welcomeInContext);
-                    if (entry != null && entry.getServletHolder().getServletInstance() != DefaultServlet.this &&
-                        (_welcomeServlets || (_welcomeExactServlets && entry.getPathSpec().getDeclaration().equals(welcomeInContext))))
-                        welcomeServlet = welcomeInContext;
+                    Resource welcomePath = base.resolve(welcome);
+                    String welcomeInContext = URIUtil.addPaths(pathInContext, welcome);
+
+                    if (Resources.isReadableFile(welcomePath))
+                        return welcomeInContext;
+
+                    if ((_welcomeServlets || _welcomeExactServlets) && welcomeServlet == null)
+                    {
+                        ServletHandler.MappedServlet entry = _servletContextHandler.getServletHandler().getMappedServlet(welcomeInContext);
+                        if (entry != null && entry.getServletHolder().getServletInstance() != DefaultServlet.this &&
+                            (_welcomeServlets || (_welcomeExactServlets && entry.getPathSpec().getDeclaration().equals(welcomeInContext))))
+                            welcomeServlet = welcomeInContext;
+                    }
                 }
             }
             return welcomeServlet;
@@ -1102,7 +1052,7 @@ public class DefaultServlet extends HttpServlet
     /**
      * Wrap an existing HttpContent with one that takes has an unknown/unspecified length.
      */
-    private static class UnknownLengthHttpContent extends HttpContentWrapper
+    private static class UnknownLengthHttpContent extends HttpContent.Wrapper
     {
         public UnknownLengthHttpContent(HttpContent content)
         {
@@ -1122,7 +1072,7 @@ public class DefaultServlet extends HttpServlet
         }
     }
 
-    private static class ForcedCharacterEncodingHttpContent extends HttpContentWrapper
+    private static class ForcedCharacterEncodingHttpContent extends HttpContent.Wrapper
     {
         private final String characterEncoding;
         private final String contentType;

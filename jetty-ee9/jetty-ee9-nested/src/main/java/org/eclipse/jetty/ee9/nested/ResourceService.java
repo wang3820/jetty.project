@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.List;
@@ -44,6 +45,7 @@ import org.eclipse.jetty.http.HttpContent;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.PreCompressedHttpContent;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.QuotedCSV;
 import org.eclipse.jetty.http.QuotedQualityCSV;
@@ -55,12 +57,12 @@ import org.eclipse.jetty.util.IO;
 import org.eclipse.jetty.util.MultiPartOutputStream;
 import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.util.resource.Resources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
-import static org.eclipse.jetty.http.HttpHeaderValue.IDENTITY;
 
 /**
  * Abstract resource service, used by DefaultServlet and ResourceHandler
@@ -71,12 +73,12 @@ public class ResourceService
 
     private static final PreEncodedHttpField ACCEPT_RANGES = new PreEncodedHttpField(HttpHeader.ACCEPT_RANGES, "bytes");
 
-    private HttpContent.ContentFactory _contentFactory;
+    private HttpContent.Factory _contentFactory;
     private WelcomeFactory _welcomeFactory;
     private boolean _acceptRanges = true;
     private boolean _dirAllowed = true;
     private boolean _redirectWelcome = false;
-    private CompressedContentFormat[] _precompressedFormats = new CompressedContentFormat[0];
+    private CompressedContentFormat[] _precompressedFormats = CompressedContentFormat.NONE;
     private String[] _preferredEncodingOrder = new String[0];
     private final Map<String, List<String>> _preferredEncodingOrderCache = new ConcurrentHashMap<>();
     private int _encodingCacheSize = 100;
@@ -85,12 +87,12 @@ public class ResourceService
     private HttpField _cacheControl;
     private List<String> _gzipEquivalentFileExtensions;
 
-    public HttpContent.ContentFactory getContentFactory()
+    public HttpContent.Factory getHttpContentFactory()
     {
         return _contentFactory;
     }
 
-    public void setContentFactory(HttpContent.ContentFactory contentFactory)
+    public void setHttpContentFactory(HttpContent.Factory contentFactory)
     {
         _contentFactory = contentFactory;
     }
@@ -143,7 +145,7 @@ public class ResourceService
     public void setPrecompressedFormats(CompressedContentFormat[] precompressedFormats)
     {
         _precompressedFormats = precompressedFormats;
-        _preferredEncodingOrder = stream(_precompressedFormats).map(f -> f.getEncoding()).toArray(String[]::new);
+        _preferredEncodingOrder = stream(_precompressedFormats).map(CompressedContentFormat::getEncoding).toArray(String[]::new);
     }
 
     public void setEncodingCacheSize(int encodingCacheSize)
@@ -184,12 +186,17 @@ public class ResourceService
     public void setCacheControl(HttpField cacheControl)
     {
         if (cacheControl == null)
+        {
             _cacheControl = null;
-        if (cacheControl.getHeader() != HttpHeader.CACHE_CONTROL)
-            throw new IllegalArgumentException("!Cache-Control");
-        _cacheControl = cacheControl instanceof PreEncodedHttpField
-            ? cacheControl
-            : new PreEncodedHttpField(cacheControl.getHeader(), cacheControl.getValue());
+        }
+        else
+        {
+            if (cacheControl.getHeader() != HttpHeader.CACHE_CONTROL)
+                throw new IllegalArgumentException("!Cache-Control");
+            _cacheControl = cacheControl instanceof PreEncodedHttpField
+                ? cacheControl
+                : new PreEncodedHttpField(cacheControl.getHeader(), cacheControl.getValue());
+        }
     }
 
     public List<String> getGzipEquivalentFileExtensions()
@@ -232,8 +239,7 @@ public class ResourceService
 
         String pathInContext = URIUtil.addPaths(servletPath, pathInfo);
 
-        boolean endsWithSlash = (pathInfo == null ? (_pathInfoOnly ? "" : servletPath) : pathInfo).endsWith(URIUtil.SLASH);
-        boolean checkPrecompressedVariants = _precompressedFormats.length > 0 && !endsWithSlash && !included && reqRanges == null;
+        boolean endsWithSlash = (pathInfo == null ? (_pathInfoOnly ? "" : servletPath) : pathInfo).endsWith("/");
 
         HttpContent content = null;
         boolean releaseContent = true;
@@ -245,7 +251,16 @@ public class ResourceService
                 LOG.debug("content={}", content);
 
             // Not found?
-            if (content == null || !content.getResource().exists())
+            if (content == null || Resources.missing(content.getResource()))
+            {
+                if (included)
+                    throw new FileNotFoundException("!" + pathInContext);
+                notFound(request, response);
+                return response.isCommitted();
+            }
+
+            ContextHandler contextHandler = ContextHandler.getContextHandler(request.getServletContext());
+            if (contextHandler != null && !contextHandler.checkAlias(pathInContext, content.getResource()))
             {
                 if (included)
                     throw new FileNotFoundException("!" + pathInContext);
@@ -275,27 +290,35 @@ public class ResourceService
             if (!included && !passConditionalHeaders(request, response, content))
                 return true;
 
-            // Precompressed variant available?
-            Map<CompressedContentFormat, ? extends HttpContent> precompressedContents = checkPrecompressedVariants ? content.getPrecompressedContents() : null;
-            if (precompressedContents != null && precompressedContents.size() > 0)
+            // Get pre-compressed content.
+            if (_precompressedFormats.length > 0)
             {
-                // Tell caches that response may vary by accept-encoding
-                response.addHeader(HttpHeader.VARY.asString(), HttpHeader.ACCEPT_ENCODING.asString());
-
-                List<String> preferredEncodings = getPreferredEncodingOrder(request);
-                CompressedContentFormat precompressedContentEncoding = getBestPrecompressedContent(preferredEncodings, precompressedContents.keySet());
-                if (precompressedContentEncoding != null)
+                List<String> preferredEncodingOrder = getPreferredEncodingOrder(request);
+                if (!preferredEncodingOrder.isEmpty())
                 {
-                    HttpContent precompressedContent = precompressedContents.get(precompressedContentEncoding);
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("precompressed={}", precompressedContent);
-                    content = precompressedContent;
-                    response.setHeader(HttpHeader.CONTENT_ENCODING.asString(), precompressedContentEncoding.getEncoding());
+                    for (String encoding : preferredEncodingOrder)
+                    {
+                        CompressedContentFormat contentFormat = isEncodingAvailable(encoding, Arrays.asList(_precompressedFormats));
+                        if (contentFormat == null)
+                            continue;
+
+                        HttpContent preCompressedContent = _contentFactory.getContent(pathInContext + contentFormat.getExtension());
+                        if (preCompressedContent == null)
+                            continue;
+
+                        content = new PreCompressedHttpContent(content, preCompressedContent, contentFormat);
+                        break;
+                    }
                 }
             }
 
-            // TODO this should be done by HttpContent#getContentEncoding
-            if (isGzippedContent(pathInContext))
+            // Set content encoding related headers.
+            if (_precompressedFormats.length > 0)
+                response.setHeader(HttpHeader.VARY.asString(), HttpHeader.ACCEPT_ENCODING.asString());
+            HttpField contentEncoding = content.getContentEncoding();
+            if (contentEncoding != null)
+                response.setHeader(contentEncoding.getName(), contentEncoding.getValue());
+            else if (isGzippedContent(pathInContext))
                 response.setHeader(HttpHeader.CONTENT_ENCODING.asString(), "gzip");
 
             // Send the data
@@ -339,6 +362,7 @@ public class ResourceService
         if (headers.hasMoreElements())
         {
             StringBuilder sb = new StringBuilder(key.length() * 2);
+            sb.append(key);
             do
             {
                 sb.append(',').append(headers.nextElement());
@@ -364,25 +388,19 @@ public class ResourceService
         return values;
     }
 
-    private CompressedContentFormat getBestPrecompressedContent(List<String> preferredEncodings, Collection<CompressedContentFormat> availableFormats)
+    private CompressedContentFormat isEncodingAvailable(String encoding, Collection<CompressedContentFormat> availableFormats)
     {
         if (availableFormats.isEmpty())
             return null;
 
-        for (String encoding : preferredEncodings)
+        for (CompressedContentFormat format : availableFormats)
         {
-            for (CompressedContentFormat format : availableFormats)
-            {
-                if (format.getEncoding().equals(encoding))
-                    return format;
-            }
-
-            if ("*".equals(encoding))
-                return availableFormats.iterator().next();
-
-            if (IDENTITY.asString().equals(encoding))
-                return null;
+            if (format.getEncoding().equals(encoding))
+                return format;
         }
+
+        if ("*".equals(encoding))
+            return availableFormats.iterator().next();
         return null;
     }
 
@@ -499,7 +517,7 @@ public class ResourceService
             String ifm = null;
             String ifnm = null;
             String ifms = null;
-            long ifums = -1;
+            String ifums = null;
 
             if (request instanceof Request)
             {
@@ -520,7 +538,7 @@ public class ResourceService
                                 ifms = field.getValue();
                                 break;
                             case IF_UNMODIFIED_SINCE:
-                                ifums = DateParser.parseDate(field.getValue());
+                                ifums = field.getValue();
                                 break;
                             default:
                         }
@@ -532,7 +550,7 @@ public class ResourceService
                 ifm = request.getHeader(HttpHeader.IF_MATCH.asString());
                 ifnm = request.getHeader(HttpHeader.IF_NONE_MATCH.asString());
                 ifms = request.getHeader(HttpHeader.IF_MODIFIED_SINCE.asString());
-                ifums = request.getDateHeader(HttpHeader.IF_UNMODIFIED_SINCE.asString());
+                ifums = request.getHeader(HttpHeader.IF_UNMODIFIED_SINCE.asString());
             }
 
             if (_etags)
@@ -587,7 +605,7 @@ public class ResourceService
             }
 
             // Handle if modified since
-            if (ifms != null)
+            if (ifms != null && ifnm == null)
             {
                 //Get jetty's Response impl
                 String mdlm = content.getLastModifiedValue();
@@ -597,19 +615,31 @@ public class ResourceService
                     return false;
                 }
 
-                long ifmsl = request.getDateHeader(HttpHeader.IF_MODIFIED_SINCE.asString());
-                if (ifmsl != -1 && content.getResource().lastModified().toEpochMilli() <= ifmsl)
+                long ifmsl = DateParser.parseDate(ifms);
+                if (ifmsl != -1)
                 {
-                    sendStatus(response, HttpServletResponse.SC_NOT_MODIFIED, content::getETagValue);
-                    return false;
+                    long lm = content.getResource().lastModified().toEpochMilli();
+                    if (lm != -1 && lm / 1000 <= ifmsl / 1000)
+                    {
+                        sendStatus(response, HttpServletResponse.SC_NOT_MODIFIED, content::getETagValue);
+                        return false;
+                    }
                 }
             }
 
             // Parse the if[un]modified dates and compare to resource
-            if (ifums != -1 && content.getResource().lastModified().toEpochMilli() > ifums)
+            if (ifums != null && ifm == null)
             {
-                response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED);
-                return false;
+                long ifumsl = DateParser.parseDate(ifums);
+                if (ifumsl != -1)
+                {
+                    long lm = content.getResource().lastModified().toEpochMilli();
+                    if (lm != -1 && lm / 1000 > ifumsl / 1000)
+                    {
+                        response.sendError(HttpServletResponse.SC_PRECONDITION_FAILED);
+                        return false;
+                    }
+                }
             }
         }
         catch (IllegalArgumentException iae)
@@ -635,7 +665,7 @@ public class ResourceService
         }
 
         byte[] data = null;
-        String base = URIUtil.addEncodedPaths(request.getRequestURI(), URIUtil.SLASH);
+        String base = URIUtil.addEncodedPaths(request.getRequestURI(), "/");
         String dir = ResourceListing.getAsXHTML(resource, base, pathInContext.length() > 1, request.getQueryString());
         if (dir == null)
         {
@@ -846,7 +876,7 @@ public class ResourceService
         if (start == 0 && content.getResource().length() == contentLength)
         {
             // attempt efficient ByteBuffer based write for whole content
-            ByteBuffer buffer = content.getBuffer();
+            ByteBuffer buffer = content.getByteBuffer();
             if (buffer != null)
             {
                 BufferUtil.writeTo(buffer, out);
@@ -869,9 +899,8 @@ public class ResourceService
 
     protected void putHeaders(HttpServletResponse response, HttpContent content, long contentLength)
     {
-        if (response instanceof Response)
+        if (response instanceof Response r)
         {
-            Response r = (Response)response;
             r.putHeaders(content, contentLength, _etags);
             HttpFields.Mutable fields = r.getHttpFields();
             if (_acceptRanges && !fields.contains(HttpHeader.ACCEPT_RANGES))

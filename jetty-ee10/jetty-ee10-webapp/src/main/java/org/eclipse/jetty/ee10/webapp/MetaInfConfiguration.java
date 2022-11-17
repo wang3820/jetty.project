@@ -45,6 +45,7 @@ import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceCollators;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.resource.ResourceUriPatternPredicate;
+import org.eclipse.jetty.util.resource.Resources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,7 +149,13 @@ public class MetaInfConfiguration extends AbstractConfiguration
         Consumer<URI> addContainerResource = (uri) ->
         {
             Resource resource = _resourceFactory.newResource(uri);
-            context.getMetaData().addContainerResource(resource);
+            if (Resources.missing(resource))
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Classpath URI doesn't exist: " + uri);
+            }
+            else
+                context.getMetaData().addContainerResource(resource);
         };
 
         List<URI> containerUris = getAllContainerJars(context);
@@ -265,7 +272,7 @@ public class MetaInfConfiguration extends AbstractConfiguration
             List<Resource> collection = new ArrayList<>();
             collection.add(context.getBaseResource());
             collection.addAll(resources);
-            context.setBaseResource(Resource.combine(collection));
+            context.setBaseResource(ResourceFactory.combine(collection));
         }
     }
 
@@ -376,11 +383,13 @@ public class MetaInfConfiguration extends AbstractConfiguration
      * @param context the context for the scan
      * @param target the target resource to scan for
      * @param cache the resource cache
-     * @throws Exception if unable to scan for resources
      */
     public void scanForResources(WebAppContext context, Resource target, ConcurrentHashMap<Resource, Resource> cache)
-        throws Exception
     {
+        // Resource target does not exist
+        if (Resources.missing(target))
+            return;
+
         Resource resourcesDir = null;
         if (cache != null && cache.containsKey(target))
         {
@@ -411,7 +420,7 @@ public class MetaInfConfiguration extends AbstractConfiguration
                 resourcesDir = _resourceFactory.newResource(URIUtil.uriJarPrefix(uri, "!/META-INF/resources"));
             }
 
-            if (cache != null)
+            if (Resources.isReadableDirectory(resourcesDir) && (cache != null))
             {
                 Resource old = cache.putIfAbsent(target, resourcesDir);
                 if (old != null)
@@ -441,7 +450,7 @@ public class MetaInfConfiguration extends AbstractConfiguration
 
     private static boolean isEmptyResource(Resource resourcesDir)
     {
-        return !resourcesDir.exists() || !resourcesDir.isDirectory();
+        return !Resources.isReadableFile(resourcesDir);
     }
 
     /**
@@ -450,10 +459,8 @@ public class MetaInfConfiguration extends AbstractConfiguration
      * @param context the context for the scan
      * @param jar the jar resource to scan for fragements in
      * @param cache the resource cache
-     * @throws Exception if unable to scan for fragments
      */
     public void scanForFragment(WebAppContext context, Resource jar, ConcurrentHashMap<Resource, Resource> cache)
-        throws Exception
     {
         Resource webFrag = null;
         if (cache != null && cache.containsKey(jar))
@@ -483,9 +490,9 @@ public class MetaInfConfiguration extends AbstractConfiguration
                 webFrag = _resourceFactory.newResource(URIUtil.uriJarPrefix(uri, "!/META-INF/web-fragment.xml"));
             }
 
-            if (cache != null)
+            if (Resources.isReadable(webFrag) && (cache != null))
             {
-                //web-fragment.xml doesn't exist: put token in cache to signal we've seen the jar               
+                //web-fragment.xml doesn't exist: put token in cache to signal we've seen the jar
                 Resource old = cache.putIfAbsent(jar, webFrag);
                 if (old != null)
                     webFrag = old;
@@ -510,7 +517,7 @@ public class MetaInfConfiguration extends AbstractConfiguration
 
     private static boolean isEmptyFragment(Resource webFrag)
     {
-        return !webFrag.exists() || webFrag.isDirectory();
+        return !Resources.isReadableFile(webFrag);
     }
 
     /**
@@ -569,7 +576,6 @@ public class MetaInfConfiguration extends AbstractConfiguration
                 return;
         }
 
-        // TODO do we want to keep a collection of URLs or should that be changed to a collection of URIs?
         Collection<URL> metaInfTlds = (Collection<URL>)context.getAttribute(METAINF_TLDS);
         if (metaInfTlds == null)
         {
@@ -598,6 +604,7 @@ public class MetaInfConfiguration extends AbstractConfiguration
      * @return the list of tlds found
      * @throws IOException if unable to scan the directory
      */
+    // TODO: Needs to use resource.
     public Collection<URL> getTlds(Path dir) throws IOException
     {
         if (dir == null || !Files.isDirectory(dir))
@@ -671,10 +678,8 @@ public class MetaInfConfiguration extends AbstractConfiguration
     protected List<Resource> findJars(WebAppContext context)
         throws Exception
     {
-        List<Resource> jarResources = new ArrayList<Resource>();
-        List<Resource> webInfLibJars = findWebInfLibJars(context);
-        if (webInfLibJars != null)
-            jarResources.addAll(webInfLibJars);
+        List<Resource> jarResources = new ArrayList<>();
+        jarResources.addAll(findWebInfLibJars(context));
         List<Resource> extraClasspathJars = findExtraClasspathJars(context);
         if (extraClasspathJars != null)
             jarResources.addAll(extraClasspathJars);
@@ -691,16 +696,26 @@ public class MetaInfConfiguration extends AbstractConfiguration
     protected List<Resource> findWebInfLibJars(WebAppContext context)
         throws Exception
     {
+        if (context == null)
+            return List.of();
+
         Resource webInf = context.getWebInf();
-        if (webInf == null)
-            return null;
+        if (webInf == null || !webInf.exists() || !webInf.isDirectory())
+            return List.of();
 
-        Resource webInfLib = webInf.resolve("/lib");
+        Resource webInfLib = webInf.resolve("lib");
 
-        return webInfLib.list().stream()
-            .filter((lib) -> FileID.isLibArchive(lib.getFileName()))
-            .sorted(ResourceCollators.byName(true))
-            .collect(Collectors.toList());
+        if (Resources.isReadableDirectory(webInfLib))
+        {
+            return webInfLib.list().stream()
+                .filter((lib) -> FileID.isLibArchive(lib.getFileName()))
+                .sorted(ResourceCollators.byName(true))
+                .collect(Collectors.toList());
+        }
+        else
+        {
+            return List.of();
+        }
     }
 
     /**
@@ -708,16 +723,13 @@ public class MetaInfConfiguration extends AbstractConfiguration
      *
      * @param context the context to find extra classpath jars in
      * @return the list of Resources with the extra classpath, or null if not found
-     * @throws Exception if unable to resolve the extra classpath jars
      */
     protected List<Resource> findExtraClasspathJars(WebAppContext context)
-        throws Exception
     {
         if (context == null || context.getExtraClasspath() == null)
             return null;
 
         return context.getExtraClasspath()
-            .getResources()
             .stream()
             .filter(this::isFileSupported)
             .collect(Collectors.toList());
@@ -737,14 +749,13 @@ public class MetaInfConfiguration extends AbstractConfiguration
             return null;
 
         Resource webInf = context.getWebInf();
-
         // Find WEB-INF/classes
-        if (webInf != null && webInf.isDirectory())
+        if (Resources.isReadableDirectory(webInf))
         {
             // Look for classes directory
-            Resource classes = webInf.resolve("classes/");
-            if (classes.exists())
-                return classes;
+            Resource webInfClassesDir = webInf.resolve("classes/");
+            if (Resources.isReadableDirectory(webInfClassesDir))
+                return webInfClassesDir;
         }
         return null;
     }
@@ -761,7 +772,6 @@ public class MetaInfConfiguration extends AbstractConfiguration
             return List.of();
 
         return context.getExtraClasspath()
-            .getResources()
             .stream()
             .filter(Resource::isDirectory)
             .collect(Collectors.toList());
