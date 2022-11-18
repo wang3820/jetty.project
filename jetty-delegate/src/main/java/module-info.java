@@ -11,24 +11,13 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.nested.api;
-
-import java.net.InetSocketAddress;
-
-import org.eclipse.jetty.http.HttpFields;
-import org.eclipse.jetty.io.Content;
-
-public interface NestedRequest extends Content.Source
+module org.eclipse.jetty.nested
 {
-    String getRequestURI();
+    requires org.eclipse.jetty.http;
+    requires org.eclipse.jetty.io;
+    requires org.eclipse.jetty.server;
+    requires org.slf4j;
 
-    String getProtocol();
-
-    String getMethod();
-
-    HttpFields getHeaders();
-
-    InetSocketAddress getRemoteAddr();
-
-    InetSocketAddress getLocalAddr();
+    exports org.eclipse.jetty.delegate;
+    exports org.eclipse.jetty.delegate.api;
 }

@@ -11,38 +11,35 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.nested.internal;
+package org.eclipse.jetty.delegate.internal;
 
 import java.net.SocketAddress;
 
+import org.eclipse.jetty.delegate.DelegateConnector;
+import org.eclipse.jetty.delegate.api.DelegateExchange;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.io.Connection;
-import org.eclipse.jetty.nested.NestedConnector;
-import org.eclipse.jetty.nested.api.NestedRequest;
-import org.eclipse.jetty.nested.api.NestedResponse;
 import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.util.Attributes;
 import org.eclipse.jetty.util.HostPort;
 
-public class NestedConnectionMetadata extends Attributes.Lazy implements ConnectionMetaData
+public class DelegateConnectionMetadata extends Attributes.Lazy implements ConnectionMetaData
 {
-    private final NestedRequest _request;
-    private final NestedResponse _response;
-    private final NestedConnection _connection;
+    private final DelegateExchange _exchange;
+    private final DelegateConnection _connection;
     private final String _connectionId;
     private final HttpConfiguration _httpConfiguration;
-    private final NestedConnector _connector;
+    private final DelegateConnector _connector;
 
-    public NestedConnectionMetadata(NestedEndpoint nestedEndpoint, NestedConnection nestedConnection, NestedConnector nestedConnector)
+    public DelegateConnectionMetadata(DelegateEndpoint delegateEndpoint, DelegateConnection delegateConnection, DelegateConnector delegateConnector)
     {
-        _request = nestedEndpoint.getNestedRequest();
-        _response = nestedEndpoint.getNestedResponse();
-        _connectionId = nestedConnection.getId();
-        _connector = nestedConnector;
-        _httpConfiguration = nestedConnector.getHttpConfiguration();
-        _connection = nestedConnection;
+        _exchange = delegateEndpoint.getDelegateExchange();
+        _connectionId = delegateConnection.getId();
+        _connector = delegateConnector;
+        _httpConfiguration = delegateConnector.getHttpConfiguration();
+        _connection = delegateConnection;
     }
 
     @Override
@@ -60,13 +57,13 @@ public class NestedConnectionMetadata extends Attributes.Lazy implements Connect
     @Override
     public HttpVersion getHttpVersion()
     {
-        return HttpVersion.fromString(_request.getProtocol());
+        return HttpVersion.fromString(_exchange.getProtocol());
     }
 
     @Override
     public String getProtocol()
     {
-        return _request.getProtocol();
+        return _exchange.getProtocol();
     }
 
     @Override
@@ -96,13 +93,13 @@ public class NestedConnectionMetadata extends Attributes.Lazy implements Connect
     @Override
     public SocketAddress getRemoteSocketAddress()
     {
-        return _request.getRemoteAddr();
+        return _exchange.getRemoteAddr();
     }
 
     @Override
     public SocketAddress getLocalSocketAddress()
     {
-        return _request.getLocalAddr();
+        return _exchange.getLocalAddr();
     }
 
     @Override

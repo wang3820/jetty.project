@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.nested.internal;
+package org.eclipse.jetty.delegate.internal;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -19,45 +19,37 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadPendingException;
 import java.nio.channels.WritePendingException;
 
+import org.eclipse.jetty.delegate.api.DelegateExchange;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
-import org.eclipse.jetty.nested.api.NestedRequest;
-import org.eclipse.jetty.nested.api.NestedResponse;
 import org.eclipse.jetty.util.Callback;
 
-public class NestedEndpoint implements EndPoint
+public class DelegateEndpoint implements EndPoint
 {
     private final long _creationTime = System.currentTimeMillis();
-    private final NestedRequest _request;
-    private final NestedResponse _response;
+    private final DelegateExchange _exchange;
     private boolean _closed = false;
 
-    public NestedEndpoint(NestedRequest request, NestedResponse response)
+    public DelegateEndpoint(DelegateExchange exchange)
     {
-        _request = request;
-        _response = response;
+        _exchange = exchange;
     }
 
-    public NestedRequest getNestedRequest()
+    public DelegateExchange getDelegateExchange()
     {
-        return _request;
-    }
-
-    public NestedResponse getNestedResponse()
-    {
-        return _response;
+        return _exchange;
     }
 
     @Override
     public InetSocketAddress getLocalAddress()
     {
-        return _request.getLocalAddr();
+        return _exchange.getLocalAddr();
     }
 
     @Override
     public InetSocketAddress getRemoteAddress()
     {
-        return _request.getRemoteAddr();
+        return _exchange.getRemoteAddr();
     }
 
     @Override

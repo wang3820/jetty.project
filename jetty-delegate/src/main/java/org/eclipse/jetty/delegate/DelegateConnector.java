@@ -11,31 +11,30 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.nested;
+package org.eclipse.jetty.delegate;
 
 import java.io.IOException;
 
-import org.eclipse.jetty.nested.api.NestedRequest;
-import org.eclipse.jetty.nested.api.NestedResponse;
-import org.eclipse.jetty.nested.internal.NestedConnection;
-import org.eclipse.jetty.nested.internal.NestedConnectionFactory;
-import org.eclipse.jetty.nested.internal.NestedEndpoint;
+import org.eclipse.jetty.delegate.api.DelegateExchange;
+import org.eclipse.jetty.delegate.internal.DelegateConnection;
+import org.eclipse.jetty.delegate.internal.DelegateConnectionFactory;
+import org.eclipse.jetty.delegate.internal.DelegateEndpoint;
 import org.eclipse.jetty.server.AbstractConnector;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.Server;
 
-public class NestedConnector extends AbstractConnector
+public class DelegateConnector extends AbstractConnector
 {
     private final HttpConfiguration _httpConfiguration = new HttpConfiguration();
 
-    public NestedConnector(Server server)
+    public DelegateConnector(Server server)
     {
         this(server, null);
     }
 
-    public NestedConnector(Server server, String protocol)
+    public DelegateConnector(Server server, String protocol)
     {
-        super(server, null, null, null, 0, new NestedConnectionFactory(protocol));
+        super(server, null, null, null, 0, new DelegateConnectionFactory(protocol));
         _httpConfiguration.setSendDateHeader(false);
         _httpConfiguration.setSendServerVersion(false);
         _httpConfiguration.setSendXPoweredBy(false);
@@ -46,12 +45,12 @@ public class NestedConnector extends AbstractConnector
         return _httpConfiguration;
     }
 
-    public void service(NestedRequest request, NestedResponse response) throws IOException
+    public void service(DelegateExchange exchange) throws IOException
     {
         // TODO: recover existing endpoint and connection from WeakReferenceMap with request as key, or some other way of
         //  doing persistent connection. There is a proposal in the servlet spec to have connection IDs.
-        NestedEndpoint endPoint = new NestedEndpoint(request, response);
-        NestedConnection connection = new NestedConnection(this, endPoint);
+        DelegateEndpoint endPoint = new DelegateEndpoint(exchange);
+        DelegateConnection connection = new DelegateConnection(this, endPoint);
         connection.handle();
     }
 

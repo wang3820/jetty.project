@@ -11,28 +11,28 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.nested.internal;
+package org.eclipse.jetty.delegate.internal;
 
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.jetty.delegate.DelegateConnector;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
-import org.eclipse.jetty.nested.NestedConnector;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.Connector;
 
-public class NestedConnectionFactory implements ConnectionFactory
+public class DelegateConnectionFactory implements ConnectionFactory
 {
-    private static final String DEFAULT_PROTOCOL = "nested-jetty";
+    private static final String DEFAULT_PROTOCOL = "jetty-delegate";
     private final String _protocol;
 
-    public NestedConnectionFactory()
+    public DelegateConnectionFactory()
     {
         this(null);
     }
 
-    public NestedConnectionFactory(String protocol)
+    public DelegateConnectionFactory(String protocol)
     {
         _protocol = (protocol == null) ? DEFAULT_PROTOCOL : protocol;
     }
@@ -52,6 +52,6 @@ public class NestedConnectionFactory implements ConnectionFactory
     @Override
     public Connection newConnection(Connector connector, EndPoint endPoint)
     {
-        return new NestedConnection((NestedConnector)connector, (NestedEndpoint)endPoint);
+        return new DelegateConnection((DelegateConnector)connector, (DelegateEndpoint)endPoint);
     }
 }

@@ -14,22 +14,32 @@
 package org.eclipse.jetty.test.nested.impl;
 
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.jetty.delegate.api.DelegateExchange;
 import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.io.ByteBufferAccumulator;
 import org.eclipse.jetty.io.Content;
-import org.eclipse.jetty.nested.api.NestedRequest;
 import org.eclipse.jetty.test.nested.rpc.MockRpcRequest;
+import org.eclipse.jetty.test.nested.rpc.MockRpcResponse;
+import org.eclipse.jetty.util.Callback;
 
-public class NestedRpcRequest implements NestedRequest
+public class DelegateRpcExchange implements DelegateExchange
 {
     private static final Content.Chunk EOF = Content.Chunk.EOF;
     private final MockRpcRequest _request;
     private final AtomicReference<Content.Chunk> _content = new AtomicReference<>();
+    private final MockRpcResponse _response;
+    private final ByteBufferAccumulator accumulator = new ByteBufferAccumulator();
+    private final CompletableFuture<Void> _completion = new CompletableFuture<>();
 
-    public NestedRpcRequest(MockRpcRequest request)
+    public DelegateRpcExchange(MockRpcRequest request, MockRpcResponse response)
     {
         _request = request;
+        _response = response;
         _content.set(new ContentChunk(request.getData()));
     }
 
@@ -85,5 +95,42 @@ public class NestedRpcRequest implements NestedRequest
     public void fail(Throwable failure)
     {
         _content.set(Content.Chunk.from(failure));
+    }
+
+    @Override
+    public void setStatus(int status)
+    {
+        _response.setHttpResponseCode(status);
+    }
+
+    @Override
+    public void addHeader(String name, String value)
+    {
+        _response.addHttpOutputHeaders(name, value);
+    }
+
+    @Override
+    public void write(boolean last, ByteBuffer content, Callback callback)
+    {
+        accumulator.copyBuffer(content);
+        callback.succeeded();
+    }
+
+    @Override
+    public void succeeded()
+    {
+        _response.setHttpResponseResponse(accumulator.toByteBuffer());
+        _completion.complete(null);
+    }
+
+    @Override
+    public void failed(Throwable x)
+    {
+        _completion.completeExceptionally(x);
+    }
+
+    public void awaitResponse() throws ExecutionException, InterruptedException
+    {
+        _completion.get();
     }
 }

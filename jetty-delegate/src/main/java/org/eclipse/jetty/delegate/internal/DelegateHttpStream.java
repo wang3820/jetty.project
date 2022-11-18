@@ -11,36 +11,38 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.nested.internal;
+package org.eclipse.jetty.delegate.internal;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.eclipse.jetty.delegate.api.DelegateExchange;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.io.Content;
-import org.eclipse.jetty.nested.api.NestedResponse;
+import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.HttpStream;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
-import org.eclipse.jetty.util.thread.Invocable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NestedHttpStream implements HttpStream
+public class DelegateHttpStream implements HttpStream
 {
-    private static final Logger LOG = LoggerFactory.getLogger(NestedHttpStream.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DelegateHttpStream.class);
 
-    private final NestedEndpoint _endpoint;
-    private final NestedConnection _connection;
+    private final DelegateEndpoint _endpoint;
+    private final DelegateConnection _connection;
+    private final HttpChannel _httpChannel;
     private final long _nanoTimestamp = System.nanoTime();
     private final AtomicBoolean _committed = new AtomicBoolean(false);
 
-    public NestedHttpStream(NestedEndpoint endpoint, NestedConnection connection)
+    public DelegateHttpStream(DelegateEndpoint endpoint, DelegateConnection connection, HttpChannel httpChannel)
     {
         _endpoint = endpoint;
         _connection = connection;
+        _httpChannel = httpChannel;
     }
 
     @Override
@@ -58,13 +60,13 @@ public class NestedHttpStream implements HttpStream
     @Override
     public Content.Chunk read()
     {
-        return _endpoint.getNestedRequest().read();
+        return _endpoint.getDelegateExchange().read();
     }
 
     @Override
     public void demand()
     {
-        _endpoint.getNestedRequest().demand(Invocable.NOOP);
+        _endpoint.getDelegateExchange().demand(_httpChannel::onContentAvailable);
     }
 
     @Override
@@ -80,17 +82,17 @@ public class NestedHttpStream implements HttpStream
             LOG.debug("send() {}, {}, last=={}", request, BufferUtil.toDetailString(content), last);
         _committed.set(true);
 
-        NestedResponse nestedResponse = _endpoint.getNestedResponse();
+        DelegateExchange delegateExchange = _endpoint.getDelegateExchange();
         if (response != null)
         {
-            nestedResponse.setStatus(response.getStatus());
+            delegateExchange.setStatus(response.getStatus());
             for (HttpField field : response.getFields())
             {
-                nestedResponse.addHeader(field.getName(), field.getValue());
+                delegateExchange.addHeader(field.getName(), field.getValue());
             }
         }
 
-        nestedResponse.write(last, content, callback);
+        delegateExchange.write(last, content, callback);
     }
 
     @Override
@@ -114,12 +116,12 @@ public class NestedHttpStream implements HttpStream
     @Override
     public void succeeded()
     {
-        _endpoint.getNestedResponse().succeeded();
+        _endpoint.getDelegateExchange().succeeded();
     }
 
     @Override
     public void failed(Throwable x)
     {
-        _endpoint.getNestedResponse().failed(x);
+        _endpoint.getDelegateExchange().failed(x);
     }
 }

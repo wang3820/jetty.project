@@ -11,11 +11,13 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.nested.internal;
+package org.eclipse.jetty.delegate.internal;
 
 import java.io.IOException;
 import java.util.EventListener;
 
+import org.eclipse.jetty.delegate.DelegateConnector;
+import org.eclipse.jetty.delegate.api.DelegateExchange;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpURI;
@@ -23,23 +25,21 @@ import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http.MetaData;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
-import org.eclipse.jetty.nested.NestedConnector;
-import org.eclipse.jetty.nested.api.NestedRequest;
 import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.internal.HttpChannelState;
 import org.eclipse.jetty.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NestedConnection implements Connection
+public class DelegateConnection implements Connection
 {
-    private static final Logger LOG = LoggerFactory.getLogger(NestedConnection.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DelegateConnection.class);
 
-    private final NestedConnector _connector;
-    private final NestedEndpoint _endpoint;
+    private final DelegateConnector _connector;
+    private final DelegateEndpoint _endpoint;
     private final String _connectionId;
 
-    public NestedConnection(NestedConnector connector, NestedEndpoint endpoint)
+    public DelegateConnection(DelegateConnector connector, DelegateEndpoint endpoint)
     {
         _connector = connector;
         _endpoint = endpoint;
@@ -122,23 +122,25 @@ public class NestedConnection implements Connection
 
     public void handle() throws IOException
     {
-        NestedRequest nestedRequest = _endpoint.getNestedRequest();
+        DelegateExchange delegateExchange = _endpoint.getDelegateExchange();
         if (LOG.isDebugEnabled())
-            LOG.debug("handling request {}", nestedRequest);
+            LOG.debug("handling request {}", delegateExchange);
 
         try
         {
             // TODO: We want to recycle the channel instead of creating a new one every time.
             // TODO: Implement the NestedChannel with the top layers HttpChannel.
-            ConnectionMetaData connectionMetaData = new NestedConnectionMetadata(_endpoint, this, _connector);
+            ConnectionMetaData connectionMetaData = new DelegateConnectionMetadata(_endpoint, this, _connector);
             HttpChannelState httpChannel = new HttpChannelState(connectionMetaData);
-            httpChannel.setHttpStream(new NestedHttpStream(_endpoint, this));
+
+            // TODO: This needs HttpChannel to implement demand().
+            httpChannel.setHttpStream(new DelegateHttpStream(_endpoint, this, httpChannel));
 
             // Generate the Request MetaData.
-            String method = nestedRequest.getMethod();
-            HttpURI httpURI = HttpURI.build(nestedRequest.getRequestURI());
-            HttpVersion httpVersion = HttpVersion.fromString(nestedRequest.getProtocol());
-            HttpFields httpFields = nestedRequest.getHeaders();
+            String method = delegateExchange.getMethod();
+            HttpURI httpURI = HttpURI.build(delegateExchange.getRequestURI());
+            HttpVersion httpVersion = HttpVersion.fromString(delegateExchange.getProtocol());
+            HttpFields httpFields = delegateExchange.getHeaders();
             long contentLength = (httpFields == null) ? -1 : httpFields.getLongField(HttpHeader.CONTENT_LENGTH);
             MetaData.Request requestMetadata = new MetaData.Request(method, httpURI, httpVersion, httpFields, contentLength);
 
@@ -150,7 +152,7 @@ public class NestedConnection implements Connection
         }
         catch (Throwable t)
         {
-            _endpoint.getNestedResponse().failed(t);
+            _endpoint.getDelegateExchange().failed(t);
         }
     }
 }

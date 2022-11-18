@@ -11,13 +11,32 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.nested.api;
+package org.eclipse.jetty.delegate.api;
 
+import java.net.InetSocketAddress;
+
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.util.Callback;
 
-public interface NestedResponse extends Content.Sink, Callback
+public interface DelegateExchange extends Content.Source, Content.Sink, Callback
 {
+    // Request Methods.
+
+    String getRequestURI();
+
+    String getProtocol();
+
+    String getMethod();
+
+    HttpFields getHeaders();
+
+    InetSocketAddress getRemoteAddr();
+
+    InetSocketAddress getLocalAddr();
+
+    // Response Methods
+
     void setStatus(int status);
 
     void addHeader(String name, String value);

@@ -23,14 +23,13 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.eclipse.jetty.delegate.DelegateConnector;
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
-import org.eclipse.jetty.nested.NestedConnector;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.test.nested.impl.NestedRpcRequest;
-import org.eclipse.jetty.test.nested.impl.NestedRpcResponse;
+import org.eclipse.jetty.test.nested.impl.DelegateRpcExchange;
 import org.eclipse.jetty.test.nested.rpc.MockRpcRequest;
 import org.eclipse.jetty.test.nested.rpc.MockRpcResponse;
 import org.eclipse.jetty.util.BufferUtil;
@@ -42,13 +41,13 @@ import org.junit.jupiter.api.Test;
 public class RpcConnectionTest
 {
     Server server;
-    NestedConnector connector;
+    DelegateConnector connector;
 
     @BeforeEach
     public void before() throws Exception
     {
         server = new Server();
-        connector = new NestedConnector(server, "RPC");
+        connector = new DelegateConnector(server, "RPC");
         server.addConnector(connector);
 
         ServletContextHandler servletContextHandler = new ServletContextHandler();
@@ -120,11 +119,10 @@ public class RpcConnectionTest
         MockRpcRequest request = new MockRpcRequest("GET", "/hello", "HTTP/1.1", add, BufferUtil.toBuffer("test input"));
         MockRpcResponse response = new MockRpcResponse();
 
-        NestedRpcRequest nestedRpcRequest = new NestedRpcRequest(request);
-        NestedRpcResponse nestedRpcResponse = new NestedRpcResponse(response);
-        connector.service(nestedRpcRequest, nestedRpcResponse);
+        DelegateRpcExchange delegateExchange = new DelegateRpcExchange(request, response);
+        connector.service(delegateExchange);
+        delegateExchange.awaitResponse();
 
-        nestedRpcResponse.awaitResponse();
         System.err.println("Response Status: " + response.getStatusCode());
         for (HttpField field : response.getFields())
         {
