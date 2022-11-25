@@ -11,14 +11,30 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.http;
+package org.eclipse.jetty.server.content;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Set;
 
+import org.eclipse.jetty.http.CompressedContentFormat;
+import org.eclipse.jetty.http.DateGenerator;
+import org.eclipse.jetty.http.EtagUtils;
+import org.eclipse.jetty.http.HttpField;
+import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.MimeTypes.Type;
+import org.eclipse.jetty.io.ByteBufferPool;
+import org.eclipse.jetty.io.Content;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.BufferUtil;
+import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.IO;
+import org.eclipse.jetty.util.IteratingCallback;
 import org.eclipse.jetty.util.resource.Resource;
 
 /**
@@ -152,5 +168,64 @@ public class ResourceHttpContent implements HttpContent
     @Override
     public void release()
     {
+    }
+
+    @Override
+    public void process(Request request, Response response, Callback callback) throws Exception
+    {
+        new ContentWriterIteratingCallback(this, response, callback).iterate();
+    }
+
+    private static class ContentWriterIteratingCallback extends IteratingCallback
+    {
+        private final ReadableByteChannel source;
+        private final Content.Sink sink;
+        private final Callback callback;
+        private final ByteBuffer byteBuffer;
+        private final ByteBufferPool byteBufferPool;
+
+        public ContentWriterIteratingCallback(HttpContent content, Response target, Callback callback) throws IOException
+        {
+            this.byteBufferPool = target.getRequest().getComponents().getByteBufferPool();
+            this.source = content.getResource().newReadableByteChannel();
+            this.sink = target;
+            this.callback = callback;
+            int outputBufferSize = target.getRequest().getConnectionMetaData().getHttpConfiguration().getOutputBufferSize();
+            boolean useOutputDirectByteBuffers = target.getRequest().getConnectionMetaData().getHttpConfiguration().isUseOutputDirectByteBuffers();
+            this.byteBuffer = byteBufferPool.acquire(outputBufferSize, useOutputDirectByteBuffers);
+        }
+
+        @Override
+        protected Action process() throws Throwable
+        {
+            if (!source.isOpen())
+                return Action.SUCCEEDED;
+
+            BufferUtil.clearToFill(byteBuffer);
+            int read = source.read(byteBuffer);
+            if (read == -1)
+            {
+                IO.close(source);
+                sink.write(true, BufferUtil.EMPTY_BUFFER, this);
+                return Action.SCHEDULED;
+            }
+            BufferUtil.flipToFlush(byteBuffer, 0);
+            sink.write(false, byteBuffer, this);
+            return Action.SCHEDULED;
+        }
+
+        @Override
+        protected void onCompleteSuccess()
+        {
+            byteBufferPool.release(byteBuffer);
+            callback.succeeded();
+        }
+
+        @Override
+        protected void onCompleteFailure(Throwable x)
+        {
+            byteBufferPool.release(byteBuffer);
+            callback.failed(x);
+        }
     }
 }

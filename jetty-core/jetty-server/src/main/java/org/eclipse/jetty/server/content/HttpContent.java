@@ -11,14 +11,19 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.http;
+package org.eclipse.jetty.server.content;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Set;
 
+import org.eclipse.jetty.http.CompressedContentFormat;
+import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.MimeTypes.Type;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.resource.Resource;
 
 /**
@@ -31,7 +36,7 @@ import org.eclipse.jetty.util.resource.Resource;
  * reuse in from a cache).
  * </p>
  */
-public interface HttpContent
+public interface HttpContent extends Request.Processor
 {
     HttpField getContentType();
 
@@ -208,6 +213,12 @@ public interface HttpContent
         public void release()
         {
             _delegate.release();
+        }
+
+        @Override
+        public void process(Request request, Response response, Callback callback) throws Exception
+        {
+            _delegate.process(request, response, callback);
         }
 
         @Override

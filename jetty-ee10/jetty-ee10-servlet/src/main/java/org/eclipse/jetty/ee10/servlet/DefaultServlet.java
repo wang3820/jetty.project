@@ -46,8 +46,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.CompressedContentFormat;
-import org.eclipse.jetty.http.FileMappingHttpContentFactory;
-import org.eclipse.jetty.http.HttpContent;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpHeader;
@@ -55,9 +53,6 @@ import org.eclipse.jetty.http.HttpHeaderValue;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MimeTypes;
-import org.eclipse.jetty.http.PreCompressedHttpContentFactory;
-import org.eclipse.jetty.http.ResourceHttpContentFactory;
-import org.eclipse.jetty.http.ValidatingCachingHttpContentFactory;
 import org.eclipse.jetty.io.ByteBufferInputStream;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.NoopByteBufferPool;
@@ -66,6 +61,11 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.content.FileMappingHttpContentFactory;
+import org.eclipse.jetty.server.content.HttpContent;
+import org.eclipse.jetty.server.content.PreCompressedHttpContentFactory;
+import org.eclipse.jetty.server.content.ResourceHttpContentFactory;
+import org.eclipse.jetty.server.content.ValidatingCachingHttpContentFactory;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.Blocker;
 import org.eclipse.jetty.util.BufferUtil;
@@ -1068,7 +1068,7 @@ public class DefaultServlet extends HttpServlet
         @Override
         public long getContentLengthValue()
         {
-            return ResourceService.NO_CONTENT_LENGTH;
+            return -1;
         }
     }
 

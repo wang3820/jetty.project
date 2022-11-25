@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.http;
+package org.eclipse.jetty.server.content;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -25,10 +25,18 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.eclipse.jetty.http.CompressedContentFormat;
+import org.eclipse.jetty.http.HttpField;
+import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.MimeTypes;
+import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.NoopByteBufferPool;
 import org.eclipse.jetty.io.Retainable;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.BufferUtil;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.NanoTime;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.resource.Resource;
@@ -479,6 +487,22 @@ public class CachingHttpContentFactory implements HttpContent.Factory
         {
             return _isValid;
         }
+
+        @Override
+        public void process(Request request, Response response, Callback callback) throws Exception
+        {
+            if (_buffer == null)
+            {
+                super.process(request, response, callback);
+                return;
+            }
+
+            // TODO
+            if (request.getHeaders().contains(HttpHeader.RANGE))
+                super.process(request, response, callback);
+
+            response.write(true, _buffer, callback);
+        }
     }
 
     protected static class NotFoundHttpContent implements CachingHttpContent
@@ -622,6 +646,12 @@ public class CachingHttpContentFactory implements HttpContent.Factory
         public boolean retain()
         {
             return true;
+        }
+
+        @Override
+        public void process(Request request, Response response, Callback callback) throws Exception
+        {
+            throw new IllegalStateException();
         }
     }
 }

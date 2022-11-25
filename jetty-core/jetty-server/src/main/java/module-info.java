@@ -23,6 +23,7 @@ module org.eclipse.jetty.server
     requires static java.xml;
 
     exports org.eclipse.jetty.server;
+    exports org.eclipse.jetty.server.content;
     exports org.eclipse.jetty.server.handler;
     exports org.eclipse.jetty.server.handler.gzip;
 

@@ -23,7 +23,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
-import java.nio.file.Files;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 
@@ -32,10 +31,12 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.WriteListener;
-import org.eclipse.jetty.http.HttpContent;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.EofException;
 import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.server.content.HttpContent;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.IO;
@@ -1312,15 +1313,27 @@ public class HttpOutput extends ServletOutputStream implements Runnable
             return;
         }
 
+        Request request = _channel.getCoreRequest();
+
+        // TODO: The wrapped request could do custom things with headers which are set.
+        Response response = new Response.Wrapper(request, _channel.getCoreResponse())
+        {
+            @Override
+            public void write(boolean last, ByteBuffer byteBuffer, Callback callback)
+            {
+                _interceptor.write(byteBuffer, last, callback);
+            }
+        };
+
         try
         {
-            ReadableByteChannel rbc = Files.newByteChannel(httpContent.getResource().getPath());
-            sendContent(rbc, callback);
+            if (prepareSendContent(0, callback))
+                httpContent.process(request, response, callback);
         }
         catch (Throwable x)
         {
             if (LOG.isDebugEnabled())
-                LOG.debug("Unable to access ReadableByteChannel for content {}", httpContent, x);
+                LOG.debug("Error from HttpContent {}", httpContent, x);
             _channel.abort(x);
             callback.failed(x);
         }

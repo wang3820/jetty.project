@@ -13,8 +13,6 @@
 
 package org.eclipse.jetty.ee9.nested.jmx;
 
-import java.io.IOException;
-
 import org.eclipse.jetty.ee9.nested.AbstractHandler;
 import org.eclipse.jetty.ee9.nested.ContextHandler;
 import org.eclipse.jetty.jmx.ObjectMBean;

@@ -11,13 +11,20 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.http;
+package org.eclipse.jetty.server.content;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Set;
 
+import org.eclipse.jetty.http.CompressedContentFormat;
+import org.eclipse.jetty.http.EtagUtils;
+import org.eclipse.jetty.http.HttpField;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.MimeTypes.Type;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.resource.Resource;
 
 public class PreCompressedHttpContent implements HttpContent
@@ -153,5 +160,11 @@ public class PreCompressedHttpContent implements HttpContent
     public void release()
     {
         _precompressedContent.release();
+    }
+
+    @Override
+    public void process(Request request, Response response, Callback callback) throws Exception
+    {
+        _precompressedContent.process(request, response, callback);
     }
 }

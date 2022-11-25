@@ -15,7 +15,6 @@ package org.eclipse.jetty.server;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.InvalidPathException;
 import java.util.ArrayList;
@@ -30,25 +29,21 @@ import org.eclipse.jetty.http.ByteRange;
 import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.DateParser;
 import org.eclipse.jetty.http.EtagUtils;
-import org.eclipse.jetty.http.HttpContent;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.MultiPart;
 import org.eclipse.jetty.http.MultiPartByteRanges;
-import org.eclipse.jetty.http.PreCompressedHttpContent;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.QuotedCSV;
 import org.eclipse.jetty.http.QuotedQualityCSV;
-import org.eclipse.jetty.http.ResourceHttpContent;
-import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.Content;
+import org.eclipse.jetty.server.content.HttpContent;
+import org.eclipse.jetty.server.content.PreCompressedHttpContent;
+import org.eclipse.jetty.server.content.ResourceHttpContent;
 import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
-import org.eclipse.jetty.util.IO;
-import org.eclipse.jetty.util.IteratingCallback;
 import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
@@ -60,11 +55,8 @@ import org.slf4j.LoggerFactory;
 public class ResourceService
 {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceService.class);
-
-    // TODO: see if we can set this to private eventually
-    public static final int NO_CONTENT_LENGTH = -1;
-    // TODO: see if we can set this to private eventually
-    public static final int USE_KNOWN_CONTENT_LENGTH = -2;
+    private static final int NO_CONTENT_LENGTH = -1;
+    private static final int USE_KNOWN_CONTENT_LENGTH = -2;
 
     private final List<CompressedContentFormat> _precompressedFormats = new ArrayList<>();
     private final Map<String, List<String>> _preferredEncodingOrderCache = new ConcurrentHashMap<>();
@@ -173,10 +165,6 @@ public class ResourceService
     public void doGet(Request request, Response response, Callback callback, HttpContent content) throws Exception
     {
         String pathInContext = Request.getPathInContext(request);
-
-        // Is this a Range request?
-        List<String> reqRanges = request.getHeaders().getValuesList(HttpHeader.RANGE.asString());
-
         boolean endsWithSlash = pathInContext.endsWith("/");
 
         try
@@ -214,7 +202,7 @@ public class ResourceService
                 response.getHeaders().put(HttpHeader.CONTENT_ENCODING, "gzip");
 
             // Send the data
-            sendData(request, response, callback, content, reqRanges);
+            sendData(request, response, callback, content);
         }
         // Can be thrown from contentFactory.getContent() call when using invalid characters
         catch (InvalidPathException e) // TODO: this cannot trigger here, as contentFactory.getContent() isn't called in this try block
@@ -529,7 +517,7 @@ public class ResourceService
             {
                 // TODO : check conditional headers.
                 HttpContent c = _contentFactory.getContent(welcomeAction.target);
-                sendData(request, response, callback, c, List.of());
+                sendData(request, response, callback, c);
             }
         }
     }
@@ -580,7 +568,7 @@ public class ResourceService
         response.write(true, ByteBuffer.wrap(data), callback);
     }
 
-    private void sendData(Request request, Response response, Callback callback, HttpContent content, List<String> reqRanges)
+    private void sendData(Request request, Response response, Callback callback, HttpContent content)
     {
         long contentLength = content.getContentLengthValue();
         callback = Callback.from(callback, content::release);
@@ -588,6 +576,8 @@ public class ResourceService
         if (LOG.isDebugEnabled())
             LOG.debug(String.format("sendData content=%s", content));
 
+        // Is this a Range request?
+        List<String> reqRanges = request.getHeaders().getValuesList(HttpHeader.RANGE.asString());
         if (reqRanges.isEmpty())
         {
             // If there are no ranges, send the entire content.
@@ -638,24 +628,10 @@ public class ResourceService
     {
         try
         {
-            ByteBuffer buffer = content.getByteBuffer();
-            if (buffer != null)
-            {
-                response.write(true, buffer, callback);
-            }
-            else
-            {
-                // TODO: is it possible to do zero-copy transfer?
-                // WritableByteChannel c = Response.asWritableByteChannel(target);
-                // FileChannel fileChannel = (FileChannel) source;
-                // fileChannel.transferTo(0, contentLength, c);
-
-                new ContentWriterIteratingCallback(content, response, callback).iterate();
-            }
+            content.process(request, response, callback);
         }
         catch (Throwable x)
         {
-            content.release();
             callback.failed(x);
         }
     }
@@ -848,58 +824,5 @@ public class ResourceService
          * (null means no welcome target was found)
          */
         String getWelcomeTarget(Request request) throws IOException;
-    }
-
-    private static class ContentWriterIteratingCallback extends IteratingCallback
-    {
-        private final ReadableByteChannel source;
-        private final Content.Sink sink;
-        private final Callback callback;
-        private final ByteBuffer byteBuffer;
-        private final ByteBufferPool byteBufferPool;
-
-        public ContentWriterIteratingCallback(HttpContent content, Response target, Callback callback) throws IOException
-        {
-            this.byteBufferPool = target.getRequest().getComponents().getByteBufferPool();
-            this.source = content.getResource().newReadableByteChannel();
-            this.sink = target;
-            this.callback = callback;
-            int outputBufferSize = target.getRequest().getConnectionMetaData().getHttpConfiguration().getOutputBufferSize();
-            boolean useOutputDirectByteBuffers = target.getRequest().getConnectionMetaData().getHttpConfiguration().isUseOutputDirectByteBuffers();
-            this.byteBuffer = byteBufferPool.acquire(outputBufferSize, useOutputDirectByteBuffers);
-        }
-
-        @Override
-        protected Action process() throws Throwable
-        {
-            if (!source.isOpen())
-                return Action.SUCCEEDED;
-
-            BufferUtil.clearToFill(byteBuffer);
-            int read = source.read(byteBuffer);
-            if (read == -1)
-            {
-                IO.close(source);
-                sink.write(true, BufferUtil.EMPTY_BUFFER, this);
-                return Action.SCHEDULED;
-            }
-            BufferUtil.flipToFlush(byteBuffer, 0);
-            sink.write(false, byteBuffer, this);
-            return Action.SCHEDULED;
-        }
-
-        @Override
-        protected void onCompleteSuccess()
-        {
-            byteBufferPool.release(byteBuffer);
-            callback.succeeded();
-        }
-
-        @Override
-        protected void onCompleteFailure(Throwable x)
-        {
-            byteBufferPool.release(byteBuffer);
-            callback.failed(x);
-        }
     }
 }
