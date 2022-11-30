@@ -15,7 +15,6 @@ package org.eclipse.jetty.server.content;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.util.Set;
 
 import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.EtagUtils;
@@ -148,12 +147,6 @@ public class PreCompressedHttpContent implements HttpContent
     public ByteBuffer getByteBuffer()
     {
         return _precompressedContent.getByteBuffer();
-    }
-
-    @Override
-    public Set<CompressedContentFormat> getPreCompressedContentFormats()
-    {
-        return _content.getPreCompressedContentFormats();
     }
 
     @Override

@@ -18,6 +18,7 @@ import java.nio.file.InvalidPathException;
 import java.util.Objects;
 
 import org.eclipse.jetty.http.MimeTypes;
+import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.resource.Resources;
@@ -29,14 +30,16 @@ import org.eclipse.jetty.util.resource.Resources;
  */
 public class ResourceHttpContentFactory implements HttpContent.Factory
 {
+    private final ResourceService _resourceService;
     private final ResourceFactory _factory;
     private final MimeTypes _mimeTypes;
 
-    public ResourceHttpContentFactory(ResourceFactory factory, MimeTypes mimeTypes)
+    public ResourceHttpContentFactory(ResourceFactory factory, MimeTypes mimeTypes, ResourceService resourceService)
     {
         Objects.requireNonNull(mimeTypes, "MimeTypes cannot be null");
         _factory = factory;
         _mimeTypes = mimeTypes;
+        _resourceService = resourceService;
     }
 
     @Override
@@ -69,7 +72,7 @@ public class ResourceHttpContentFactory implements HttpContent.Factory
     {
         if (resource == null || !resource.exists())
             return null;
-        return new ResourceHttpContent(resource, _mimeTypes.getMimeByExtension(pathInContext));
+        return new ResourceHttpContent(resource, _mimeTypes.getMimeByExtension(pathInContext), _resourceService);
     }
 
     @Override

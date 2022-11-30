@@ -16,9 +16,7 @@ package org.eclipse.jetty.server.content;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.util.Set;
 
-import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.MimeTypes.Type;
 import org.eclipse.jetty.server.Request;
@@ -72,11 +70,6 @@ public interface HttpContent extends Request.Processor
     {
         return getContentLengthValue();
     }
-
-    /**
-     * @return Set of available pre-compressed formats for this content, or null if this has not been checked.
-     */
-    Set<CompressedContentFormat> getPreCompressedContentFormats();
 
     void release();
 
@@ -201,12 +194,6 @@ public interface HttpContent extends Request.Processor
         public long getBytesOccupied()
         {
             return _delegate.getBytesOccupied();
-        }
-
-        @Override
-        public Set<CompressedContentFormat> getPreCompressedContentFormats()
-        {
-            return _delegate.getPreCompressedContentFormats();
         }
 
         @Override

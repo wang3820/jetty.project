@@ -249,7 +249,7 @@ public class DefaultServlet extends HttpServlet implements ResourceFactory, Welc
         HttpContent.Factory contentFactory = (HttpContent.Factory)getServletContext().getAttribute(HttpContent.Factory.class.getName());
         if (contentFactory == null)
         {
-            contentFactory = new ResourceHttpContentFactory(this, _mimeTypes);
+            contentFactory = new ResourceHttpContentFactory(this, _mimeTypes, _resourceService);
             contentFactory = new PreCompressedHttpContentFactory(contentFactory, _resourceService.getPrecompressedFormats());
             if (_useFileMappedBuffer)
                 contentFactory = new FileMappingHttpContentFactory(contentFactory);

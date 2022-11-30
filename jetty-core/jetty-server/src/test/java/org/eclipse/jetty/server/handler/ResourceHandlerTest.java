@@ -53,7 +53,9 @@ import org.eclipse.jetty.server.content.FileMappingHttpContentFactory;
 import org.eclipse.jetty.server.content.HttpContent;
 import org.eclipse.jetty.server.content.PreCompressedHttpContentFactory;
 import org.eclipse.jetty.server.content.ResourceHttpContentFactory;
+import org.eclipse.jetty.server.content.StaticContentFactory;
 import org.eclipse.jetty.server.content.ValidatingCachingHttpContentFactory;
+import org.eclipse.jetty.server.content.WelcomeHttpContentFactory;
 import org.eclipse.jetty.toolchain.test.FS;
 import org.eclipse.jetty.toolchain.test.MavenPaths;
 import org.eclipse.jetty.toolchain.test.MavenTestingUtils;
@@ -114,6 +116,7 @@ public class ResourceHandlerTest
     private LocalConnector _local;
 
     private ResourceHandler _rootResourceHandler;
+    private CachingHttpContentFactory _cachingContentFactory;
 
     private ContextHandlerCollection _contextHandlerCollection;
 
@@ -660,19 +663,22 @@ public class ResourceHandlerTest
         _local.getConnectionFactory(HttpConfiguration.ConnectionFactory.class).getHttpConfiguration().setSendServerVersion(false);
         _server.addConnector(_local);
 
+        // For testing the cache should be configured to validate the entry on every request.
         _rootResourceHandler = new ResourceHandler()
         {
             @Override
-            protected HttpContent.Factory newHttpContentFactory()
+            protected HttpContent.Factory newHttpContentFactory(ResourceService resourceService)
             {
-                // For testing the cache should be configured to validate the entry on every request.
-                HttpContent.Factory contentFactory = new ResourceHttpContentFactory(ResourceFactory.of(getBaseResource()), getMimeTypes());
-                contentFactory = new PreCompressedHttpContentFactory(contentFactory, getPrecompressedFormats());
-                contentFactory = new FileMappingHttpContentFactory(contentFactory);
-                contentFactory = new ValidatingCachingHttpContentFactory(contentFactory, 0, _local.getByteBufferPool());
+                HttpContent.Factory contentFactory = new ResourceHttpContentFactory(ResourceFactory.of(getBaseResource()), getMimeTypes(), resourceService);
+                contentFactory = new FileMappingHttpContentFactory(contentFactory, resourceService);
+                contentFactory = new StaticContentFactory(contentFactory, resourceService, getStyleSheet());
+                contentFactory = new WelcomeHttpContentFactory(contentFactory, resourceService, setupWelcomeFactory(), isRedirectWelcome());
+                contentFactory = _cachingContentFactory = new ValidatingCachingHttpContentFactory(contentFactory, resourceService, getValidationPeriod(), getByteBufferPool());
+                contentFactory = new PreCompressedHttpContentFactory(contentFactory, resourceService, getPrecompressedFormats(), getEncodingCacheSize());
                 return contentFactory;
             }
         };
+        _rootResourceHandler.setValidationPeriod(0);
         _rootResourceHandler.setWelcomeFiles("welcome.txt");
         _rootResourceHandler.setRedirectWelcome(false);
 
@@ -684,6 +690,12 @@ public class ResourceHandlerTest
         _contextHandlerCollection.addHandler(contextHandler);
 
         _server.setHandler(_contextHandlerCollection);
+        _server.start();
+    }
+
+    public void restartServer() throws Exception
+    {
+        _server.stop();
         _server.start();
     }
 
@@ -776,6 +788,7 @@ public class ResourceHandlerTest
         _rootResourceHandler.setRedirectWelcome(false);
         _rootResourceHandler.setPrecompressedFormats(CompressedContentFormat.BR);
         _rootResourceHandler.setEtags(true);
+        restartServer();
 
         String rawResponse = _local.getResponse("""
             GET /context/data0.txt HTTP/1.1\r
@@ -804,6 +817,7 @@ public class ResourceHandlerTest
         _rootResourceHandler.setRedirectWelcome(false);
         _rootResourceHandler.setPrecompressedFormats(CompressedContentFormat.BR);
         _rootResourceHandler.setEtags(true);
+        restartServer();
 
         String rawResponse;
         HttpTester.Response response;
@@ -939,6 +953,7 @@ public class ResourceHandlerTest
         _rootResourceHandler.setRedirectWelcome(false);
         _rootResourceHandler.setPrecompressedFormats(CompressedContentFormat.BR);
         _rootResourceHandler.setEtags(true);
+        restartServer();
 
         String rawResponse;
         HttpTester.Response response;
@@ -1059,6 +1074,7 @@ public class ResourceHandlerTest
         _rootResourceHandler.setRedirectWelcome(false);
         _rootResourceHandler.setPrecompressedFormats(CompressedContentFormat.GZIP);
         _rootResourceHandler.setEtags(true);
+        restartServer();
 
         String rawResponse;
         HttpTester.Response response;
@@ -1170,8 +1186,6 @@ public class ResourceHandlerTest
     public void testCachingDirectoryNotCached() throws Exception
     {
         copySimpleTestResource(docRoot);
-        // TODO explicitly turn on caching
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
         _rootResourceHandler.setWelcomeFiles(List.of()); // disable welcome files otherwise they get cached
 
         for (int i = 0; i < 10; i++)
@@ -1187,17 +1201,15 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), containsString("Directory: /context/directory/"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(0));
-        assertThat(contentFactory.getCachedSize(), is(0L));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(0));
+        assertThat(_cachingContentFactory.getCachedSize(), is(0L));
     }
 
     @Test
     public void testCachingFilesCached() throws Exception
     {
         copySimpleTestResource(docRoot);
-        // TODO explicitly turn on caching
         long expectedSize = Files.size(docRoot.resolve("big.txt"));
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
 
         for (int i = 0; i < 10; i++)
         {
@@ -1213,12 +1225,12 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), endsWith("   400\tThis is a big file\n"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(1));
-        assertThat(contentFactory.getCachedSize(), is(expectedSize));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(1));
+        assertThat(_cachingContentFactory.getCachedSize(), is(expectedSize));
 
-        contentFactory.flushCache();
-        assertThat(contentFactory.getCachedFiles(), is(0));
-        assertThat(contentFactory.getCachedSize(), is(0L));
+        _cachingContentFactory.flushCache();
+        assertThat(_cachingContentFactory.getCachedFiles(), is(0));
+        assertThat(_cachingContentFactory.getCachedSize(), is(0L));
     }
 
     @Test
@@ -1226,8 +1238,7 @@ public class ResourceHandlerTest
     {
         copySimpleTestResource(docRoot);
         long expectedSize = Files.size(docRoot.resolve("simple.txt"));
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
-        contentFactory.setMaxCacheSize((int)expectedSize);
+        _cachingContentFactory.setMaxCacheSize((int)expectedSize);
 
         for (int i = 0; i < 10; i++)
         {
@@ -1243,8 +1254,8 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), endsWith("   400\tThis is a big file\n"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(0));
-        assertThat(contentFactory.getCachedSize(), is(0L));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(0));
+        assertThat(_cachingContentFactory.getCachedSize(), is(0L));
 
         for (int i = 0; i < 10; i++)
         {
@@ -1259,18 +1270,16 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), equalTo("simple text"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(1));
-        assertThat(contentFactory.getCachedSize(), is(expectedSize));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(1));
+        assertThat(_cachingContentFactory.getCachedSize(), is(expectedSize));
     }
 
     @Test
     public void testCachingMaxCachedFileSizeRespected() throws Exception
     {
         copySimpleTestResource(docRoot);
-        // TODO explicitly turn on caching
         long expectedSize = Files.size(docRoot.resolve("simple.txt"));
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
-        contentFactory.setMaxCachedFileSize((int)expectedSize);
+        _cachingContentFactory.setMaxCachedFileSize((int)expectedSize);
 
         for (int i = 0; i < 10; i++)
         {
@@ -1286,8 +1295,8 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), endsWith("   400\tThis is a big file\n"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(0));
-        assertThat(contentFactory.getCachedSize(), is(0L));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(0));
+        assertThat(_cachingContentFactory.getCachedSize(), is(0L));
 
         for (int i = 0; i < 10; i++)
         {
@@ -1302,8 +1311,8 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), equalTo("simple text"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(1));
-        assertThat(contentFactory.getCachedSize(), is(expectedSize));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(1));
+        assertThat(_cachingContentFactory.getCachedSize(), is(expectedSize));
     }
 
     @Test
@@ -1312,8 +1321,7 @@ public class ResourceHandlerTest
         copySimpleTestResource(docRoot);
         long expectedSizeBig = Files.size(docRoot.resolve("big.txt"));
         long expectedSizeSimple = Files.size(docRoot.resolve("simple.txt"));
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
-        contentFactory.setMaxCachedFiles(1);
+        _cachingContentFactory.setMaxCachedFiles(1);
 
         for (int i = 0; i < 10; i++)
         {
@@ -1329,8 +1337,8 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), endsWith("   400\tThis is a big file\n"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(1));
-        assertThat(contentFactory.getCachedSize(), is(expectedSizeBig));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(1));
+        assertThat(_cachingContentFactory.getCachedSize(), is(expectedSizeBig));
 
         for (int i = 0; i < 10; i++)
         {
@@ -1345,15 +1353,13 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), equalTo("simple text"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(1));
-        assertThat(contentFactory.getCachedSize(), is(oneOf(expectedSizeBig, expectedSizeSimple)));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(1));
+        assertThat(_cachingContentFactory.getCachedSize(), is(oneOf(expectedSizeBig, expectedSizeSimple)));
     }
 
     @Test
     public void testCachingNotFoundNotCached() throws Exception
     {
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
-
         for (int i = 0; i < 10; i++)
         {
             HttpTester.Response response = HttpTester.parseResponse(
@@ -1367,8 +1373,8 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), containsString("Error 404 Not Found"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(0));
-        assertThat(contentFactory.getCachedSize(), is(0L));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(0));
+        assertThat(_cachingContentFactory.getCachedSize(), is(0L));
     }
 
     @Test
@@ -1380,7 +1386,7 @@ public class ResourceHandlerTest
             Files.size(docRoot.resolve("big.txt.gz"));
 
         _rootResourceHandler.setPrecompressedFormats(CompressedContentFormat.GZIP);
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
+        restartServer();
 
         for (int i = 0; i < 10; i++)
         {
@@ -1415,12 +1421,12 @@ public class ResourceHandlerTest
             assertThat(response2.getContent(), endsWith("   400\tThis is a big file\n"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(2));
-        assertThat(contentFactory.getCachedSize(), is(expectedSize));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(2));
+        assertThat(_cachingContentFactory.getCachedSize(), is(expectedSize));
 
-        contentFactory.flushCache();
-        assertThat(contentFactory.getCachedFiles(), is(0));
-        assertThat(contentFactory.getCachedSize(), is(0L));
+        _cachingContentFactory.flushCache();
+        assertThat(_cachingContentFactory.getCachedFiles(), is(0));
+        assertThat(_cachingContentFactory.getCachedSize(), is(0L));
     }
 
     @Test
@@ -1432,7 +1438,7 @@ public class ResourceHandlerTest
 
         _rootResourceHandler.setPrecompressedFormats(CompressedContentFormat.GZIP);
         _rootResourceHandler.setEtags(true);
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
+        restartServer();
 
         for (int i = 0; i < 10; i++)
         {
@@ -1497,12 +1503,12 @@ public class ResourceHandlerTest
             assertThat(response4.getStatus(), is(HttpStatus.NOT_MODIFIED_304));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(2));
-        assertThat(contentFactory.getCachedSize(), is(expectedSize));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(2));
+        assertThat(_cachingContentFactory.getCachedSize(), is(expectedSize));
 
-        contentFactory.flushCache();
-        assertThat(contentFactory.getCachedFiles(), is(0));
-        assertThat(contentFactory.getCachedSize(), is(0L));
+        _cachingContentFactory.flushCache();
+        assertThat(_cachingContentFactory.getCachedFiles(), is(0));
+        assertThat(_cachingContentFactory.getCachedSize(), is(0L));
     }
 
     @Test
@@ -1511,8 +1517,6 @@ public class ResourceHandlerTest
         Path tempPath = docRoot.resolve("temp.txt");
         Files.writeString(tempPath, "temp file");
         long expectedSize = Files.size(tempPath);
-
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
 
         for (int i = 0; i < 10; i++)
         {
@@ -1527,8 +1531,8 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), equalTo("temp file"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(1));
-        assertThat(contentFactory.getCachedSize(), is(expectedSize));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(1));
+        assertThat(_cachingContentFactory.getCachedSize(), is(expectedSize));
 
         // re-write the file as long as its last modified timestamp did not change
         FileTime before = Files.getLastModifiedTime(tempPath);
@@ -1552,8 +1556,8 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), equalTo("updated temp file"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(1));
-        assertThat(contentFactory.getCachedSize(), is(newExpectedSize));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(1));
+        assertThat(_cachingContentFactory.getCachedSize(), is(newExpectedSize));
 
         Files.deleteIfExists(tempPath);
     }
@@ -1563,7 +1567,6 @@ public class ResourceHandlerTest
     {
         copySimpleTestResource(docRoot);
         long expectedSize = Files.size(docRoot.resolve("directory/welcome.txt"));
-        CachingHttpContentFactory contentFactory = (CachingHttpContentFactory)_rootResourceHandler.getHttpContentFactory();
 
         for (int i = 0; i < 10; i++)
         {
@@ -1578,8 +1581,8 @@ public class ResourceHandlerTest
             assertThat(response.getContent(), containsString("Hello"));
         }
 
-        assertThat(contentFactory.getCachedFiles(), is(1));
-        assertThat(contentFactory.getCachedSize(), is(expectedSize));
+        assertThat(_cachingContentFactory.getCachedFiles(), is(1));
+        assertThat(_cachingContentFactory.getCachedSize(), is(expectedSize));
     }
 
     @Test
@@ -1652,6 +1655,7 @@ public class ResourceHandlerTest
             new CompressedContentFormat("gzip", ".gz"),
             new CompressedContentFormat("br", ".br")
         );
+        restartServer();
 
         String rawResponse;
         HttpTester.Response response;
@@ -2132,6 +2136,8 @@ public class ResourceHandlerTest
         _rootResourceHandler.setRedirectWelcome(false);
         _rootResourceHandler.setPrecompressedFormats(CompressedContentFormat.GZIP);
         _rootResourceHandler.setEtags(true);
+        _server.stop();
+        _server.start();
 
         String rawResponse;
         HttpTester.Response response;

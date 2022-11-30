@@ -18,24 +18,33 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.Set;
+import java.util.List;
 
-import org.eclipse.jetty.http.CompressedContentFormat;
+import org.eclipse.jetty.http.ByteRange;
 import org.eclipse.jetty.http.DateGenerator;
 import org.eclipse.jetty.http.EtagUtils;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.MimeTypes.Type;
+import org.eclipse.jetty.http.MultiPart;
+import org.eclipse.jetty.http.MultiPartByteRanges;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.IO;
 import org.eclipse.jetty.util.IteratingCallback;
 import org.eclipse.jetty.util.resource.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.eclipse.jetty.server.ResourceService.NO_CONTENT_LENGTH;
+import static org.eclipse.jetty.server.ResourceService.USE_KNOWN_CONTENT_LENGTH;
 
 /**
  * HttpContent created from a {@link Resource}.
@@ -45,14 +54,18 @@ import org.eclipse.jetty.util.resource.Resource;
  */
 public class ResourceHttpContent implements HttpContent
 {
+    private static final Logger LOG = LoggerFactory.getLogger(ResourceHttpContent.class);
+
     final Resource _resource;
     final Path _path;
     final String _contentType;
     final HttpField _etag;
+    final ResourceService _resourceService;
 
-    public ResourceHttpContent(final Resource resource, final String contentType)
+    public ResourceHttpContent(Resource resource, String contentType, ResourceService resourceService)
     {
         _resource = resource;
+        _resourceService = resourceService;
         _path = resource.getPath();
         _contentType = contentType;
         _etag = EtagUtils.createWeakEtagField(resource);
@@ -160,12 +173,6 @@ public class ResourceHttpContent implements HttpContent
     }
 
     @Override
-    public Set<CompressedContentFormat> getPreCompressedContentFormats()
-    {
-        return null;
-    }
-
-    @Override
     public void release()
     {
     }
@@ -173,7 +180,58 @@ public class ResourceHttpContent implements HttpContent
     @Override
     public void process(Request request, Response response, Callback callback) throws Exception
     {
-        new ContentWriterIteratingCallback(this, response, callback).iterate();
+        long contentLength = getContentLengthValue();
+        callback = Callback.from(callback, this::release);
+
+        if (LOG.isDebugEnabled())
+            LOG.debug(String.format("sendData content=%s", this));
+
+        // Is this a Range request?
+        List<String> reqRanges = request.getHeaders().getValuesList(HttpHeader.RANGE.asString());
+        if (reqRanges.isEmpty())
+        {
+            // If there are no ranges, send the entire content.
+            if (contentLength >= 0)
+                _resourceService.putHeaders(response, this, USE_KNOWN_CONTENT_LENGTH);
+            else
+                _resourceService.putHeaders(response, this, NO_CONTENT_LENGTH);
+            new ContentWriterIteratingCallback(this, response, callback).iterate();
+            return;
+        }
+
+        // Parse the satisfiable ranges.
+        List<ByteRange> ranges = ByteRange.parse(reqRanges, contentLength);
+
+        // If there are no satisfiable ranges, send a 416 response.
+        if (ranges.isEmpty())
+        {
+            _resourceService.putHeaders(response, this, NO_CONTENT_LENGTH);
+            response.getHeaders().put(HttpHeader.CONTENT_RANGE, ByteRange.toNonSatisfiableHeaderValue(contentLength));
+            Response.writeError(request, response, callback, HttpStatus.RANGE_NOT_SATISFIABLE_416);
+            return;
+        }
+
+        // If there is only a single valid range, send that range with a 206 response.
+        if (ranges.size() == 1)
+        {
+            ByteRange range = ranges.get(0);
+            _resourceService.putHeaders(response, this, range.getLength());
+            response.setStatus(HttpStatus.PARTIAL_CONTENT_206);
+            response.getHeaders().put(HttpHeader.CONTENT_RANGE, range.toHeaderValue(contentLength));
+            Content.copy(new MultiPartByteRanges.PathContentSource(getResource().getPath(), range), response, callback);
+            return;
+        }
+
+        // There are multiple non-overlapping ranges, send a multipart/byteranges 206 response.
+        _resourceService.putHeaders(response, this, NO_CONTENT_LENGTH);
+        response.setStatus(HttpStatus.PARTIAL_CONTENT_206);
+        String contentType = "multipart/byteranges; boundary=";
+        String boundary = MultiPart.generateBoundary(null, 24);
+        response.getHeaders().put(HttpHeader.CONTENT_TYPE, contentType + boundary);
+        MultiPartByteRanges.ContentSource byteRanges = new MultiPartByteRanges.ContentSource(boundary);
+        ranges.forEach(range -> byteRanges.addPart(new MultiPartByteRanges.Part(getContentTypeValue(), getResource().getPath(), range, contentLength)));
+        byteRanges.close();
+        Content.copy(byteRanges, response, callback);
     }
 
     private static class ContentWriterIteratingCallback extends IteratingCallback

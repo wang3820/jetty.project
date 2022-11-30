@@ -20,6 +20,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.InvalidPathException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -52,7 +53,6 @@ import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpHeaderValue;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
-import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.io.ByteBufferInputStream;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.NoopByteBufferPool;
@@ -65,7 +65,9 @@ import org.eclipse.jetty.server.content.FileMappingHttpContentFactory;
 import org.eclipse.jetty.server.content.HttpContent;
 import org.eclipse.jetty.server.content.PreCompressedHttpContentFactory;
 import org.eclipse.jetty.server.content.ResourceHttpContentFactory;
+import org.eclipse.jetty.server.content.StaticContentFactory;
 import org.eclipse.jetty.server.content.ValidatingCachingHttpContentFactory;
+import org.eclipse.jetty.server.content.WelcomeHttpContentFactory;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.Blocker;
 import org.eclipse.jetty.util.BufferUtil;
@@ -103,7 +105,6 @@ public class DefaultServlet extends HttpServlet
     {
         ServletContextHandler servletContextHandler = initContextHandler(getServletContext());
         _resourceService = new ServletResourceService(servletContextHandler);
-        _resourceService.setWelcomeFactory(_resourceService);
 
         _baseResource = servletContextHandler.getBaseResource();
         String rb = getInitParameter("baseResource", "resourceBase");
@@ -121,20 +122,60 @@ public class DefaultServlet extends HttpServlet
             }
         }
 
-        List<CompressedContentFormat> precompressedFormats = parsePrecompressedFormats(getInitParameter("precompressed"),
-            getInitBoolean("gzip"), _resourceService.getPrecompressedFormats());
+        List<CompressedContentFormat> precompressedFormats = parsePrecompressedFormats(getInitParameter("precompressed"), getInitBoolean("gzip"));
+        int encodingHeaderCacheSize = getInitInt("encodingHeaderCacheSize", -1);
 
         // Try to get factory from ServletContext attribute.
         HttpContent.Factory contentFactory = (HttpContent.Factory)getServletContext().getAttribute(HttpContent.Factory.class.getName());
         if (contentFactory == null)
         {
-            MimeTypes mimeTypes = servletContextHandler.getMimeTypes();
-            contentFactory = new ResourceHttpContentFactory(ResourceFactory.of(_baseResource), mimeTypes);
-            contentFactory = new PreCompressedHttpContentFactory(contentFactory, precompressedFormats);
+            contentFactory = new ResourceHttpContentFactory(ResourceFactory.of(_baseResource), servletContextHandler.getMimeTypes(), _resourceService);
 
             if (getInitBoolean("useFileMappedBuffer", false))
-                contentFactory = new FileMappingHttpContentFactory(contentFactory);
+                contentFactory = new FileMappingHttpContentFactory(contentFactory, _resourceService);
 
+            // Setup StaticContentFactory, use the servers default stylesheet unless there is one explicitly set by an init param.
+            StaticContentFactory staticContentFactory = new StaticContentFactory(contentFactory, _resourceService);
+            staticContentFactory.setStyleSheet(servletContextHandler.getServer().getDefaultStyleSheet());
+            String stylesheetParam = getInitParameter("stylesheet");
+            if (stylesheetParam != null)
+            {
+                try
+                {
+                    Resource stylesheet = _resourceFactory.newResource(stylesheetParam);
+                    if (Resources.isReadableFile(stylesheet))
+                    {
+                        staticContentFactory.setStyleSheet(stylesheet);
+                    }
+                    else
+                    {
+                        LOG.warn("Stylesheet {} does not exist", stylesheetParam);
+                    }
+                }
+                catch (Exception e)
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.warn("Unable to use stylesheet: {}", stylesheetParam, e);
+                    else
+                        LOG.warn("Unable to use stylesheet: {} - {}", stylesheetParam, e.toString());
+                }
+            }
+            contentFactory = staticContentFactory;
+
+            // Setup welcome factory.
+            WelcomeHttpContentFactory welcomeHttpContentFactory = new WelcomeHttpContentFactory(contentFactory, _resourceService)
+            {
+                @Override
+                protected void welcomeActionProcess(Request request, Response response, Callback callback, WelcomeAction welcomeAction) throws IOException
+                {
+                    _resourceService.welcomeActionProcess(request, response, callback, welcomeAction, this);
+                }
+            };
+            welcomeHttpContentFactory.setWelcomeFactory(_resourceService);
+            welcomeHttpContentFactory.setRedirectWelcome(getInitBoolean("redirectWelcome", false));
+            contentFactory = welcomeHttpContentFactory;
+
+            // Setup CachingContentFactory.
             int maxCacheSize = getInitInt("maxCacheSize", -2);
             int maxCachedFileSize = getInitInt("maxCachedFileSize", -2);
             int maxCachedFiles = getInitInt("maxCachedFiles", -2);
@@ -142,7 +183,7 @@ public class DefaultServlet extends HttpServlet
             if (maxCachedFiles != -2 || maxCacheSize != -2 || maxCachedFileSize != -2 || cacheValidationTime != -2)
             {
                 ByteBufferPool byteBufferPool = getByteBufferPool(servletContextHandler);
-                ValidatingCachingHttpContentFactory cached = new ValidatingCachingHttpContentFactory(contentFactory,
+                ValidatingCachingHttpContentFactory cached = new ValidatingCachingHttpContentFactory(contentFactory, _resourceService,
                     (cacheValidationTime > -2) ? cacheValidationTime : Duration.ofSeconds(1).toMillis(), byteBufferPool);
                 contentFactory = cached;
                 if (maxCacheSize >= 0)
@@ -152,7 +193,11 @@ public class DefaultServlet extends HttpServlet
                 if (maxCachedFiles >= -1)
                     cached.setMaxCachedFiles(maxCachedFiles);
             }
+
+            // The PreCompressedHttpContentFactory needs to come after cache, as the cache doesn't look at vary headers.
+            contentFactory = new PreCompressedHttpContentFactory(contentFactory, _resourceService, precompressedFormats, encodingHeaderCacheSize);
         }
+
         _resourceService.setHttpContentFactory(contentFactory);
 
         if (servletContextHandler.getWelcomeFiles() == null)
@@ -160,8 +205,6 @@ public class DefaultServlet extends HttpServlet
 
         _resourceService.setAcceptRanges(getInitBoolean("acceptRanges", _resourceService.isAcceptRanges()));
         _resourceService.setDirAllowed(getInitBoolean("dirAllowed", _resourceService.isDirAllowed()));
-        _resourceService.setRedirectWelcome(getInitBoolean("redirectWelcome", _resourceService.isRedirectWelcome()));
-        _resourceService.setPrecompressedFormats(precompressedFormats);
         _resourceService.setEtags(getInitBoolean("etags", _resourceService.isEtags()));
 
         _isPathInfoOnly = getInitBoolean("pathInfoOnly", _isPathInfoOnly);
@@ -173,36 +216,6 @@ public class DefaultServlet extends HttpServlet
         }
         else
             _welcomeServlets = getInitBoolean("welcomeServlets", _welcomeServlets);
-
-        // Use the servers default stylesheet unless there is one explicitly set by an init param.
-        _resourceService.setStyleSheet(servletContextHandler.getServer().getDefaultStyleSheet());
-        String stylesheetParam = getInitParameter("stylesheet");
-        if (stylesheetParam != null)
-        {
-            try
-            {
-                Resource stylesheet = _resourceFactory.newResource(stylesheetParam);
-                if (Resources.isReadableFile(stylesheet))
-                {
-                    _resourceService.setStyleSheet(stylesheet);
-                }
-                else
-                {
-                    LOG.warn("Stylesheet {} does not exist", stylesheetParam);
-                }
-            }
-            catch (Exception e)
-            {
-                if (LOG.isDebugEnabled())
-                    LOG.warn("Unable to use stylesheet: {}", stylesheetParam, e);
-                else
-                    LOG.warn("Unable to use stylesheet: {} - {}", stylesheetParam, e.toString());
-            }
-        }
-
-        int encodingHeaderCacheSize = getInitInt("encodingHeaderCacheSize", -1);
-        if (encodingHeaderCacheSize >= 0)
-            _resourceService.setEncodingCacheSize(encodingHeaderCacheSize);
 
         String cc = getInitParameter("cacheControl");
         if (cc != null)
@@ -270,11 +283,11 @@ public class DefaultServlet extends HttpServlet
         IO.close(_resourceFactory);
     }
 
-    private List<CompressedContentFormat> parsePrecompressedFormats(String precompressed, Boolean gzip, List<CompressedContentFormat> dft)
+    private List<CompressedContentFormat> parsePrecompressedFormats(String precompressed, Boolean gzip)
     {
         if (precompressed == null && gzip == null)
         {
-            return dft;
+            return Collections.emptyList();
         }
         List<CompressedContentFormat> ret = new ArrayList<>();
         if (precompressed != null && precompressed.indexOf('=') > 0)
@@ -876,7 +889,7 @@ public class DefaultServlet extends HttpServlet
         }
     }
 
-    private class ServletResourceService extends ResourceService implements ResourceService.WelcomeFactory
+    private class ServletResourceService extends ResourceService implements WelcomeHttpContentFactory.WelcomeFactory
     {
         private final ServletContextHandler _servletContextHandler;
 
@@ -930,8 +943,7 @@ public class DefaultServlet extends HttpServlet
             return welcomeServlet;
         }
 
-        @Override
-        protected void welcomeActionProcess(Request coreRequest, Response coreResponse, Callback callback, WelcomeAction welcomeAction) throws IOException
+        public void welcomeActionProcess(Request coreRequest, Response coreResponse, Callback callback, WelcomeHttpContentFactory.WelcomeAction welcomeAction, WelcomeHttpContentFactory welcomeHttpContentFactory) throws IOException
         {
             HttpServletRequest request = getServletRequest(coreRequest);
             HttpServletResponse response = getServletResponse(coreResponse);
@@ -944,7 +956,7 @@ public class DefaultServlet extends HttpServlet
             {
                 case REDIRECT ->
                 {
-                    if (isRedirectWelcome() || context == null)
+                    if (welcomeHttpContentFactory.isRedirectWelcome() || context == null)
                     {
                         String servletPath = included ? (String)request.getAttribute(RequestDispatcher.INCLUDE_SERVLET_PATH)
                             : request.getServletPath();
@@ -986,13 +998,13 @@ public class DefaultServlet extends HttpServlet
         }
 
         @Override
-        protected void writeHttpError(Request coreRequest, Response coreResponse, Callback callback, int statusCode)
+        public void writeHttpError(Request coreRequest, Response coreResponse, Callback callback, int statusCode)
         {
             writeHttpError(coreRequest, coreResponse, callback, statusCode, null, null);
         }
 
         @Override
-        protected void writeHttpError(Request coreRequest, Response coreResponse, Callback callback, Throwable cause)
+        public void writeHttpError(Request coreRequest, Response coreResponse, Callback callback, Throwable cause)
         {
             int statusCode = HttpStatus.INTERNAL_SERVER_ERROR_500;
             String reason = null;
@@ -1005,7 +1017,7 @@ public class DefaultServlet extends HttpServlet
         }
 
         @Override
-        protected void writeHttpError(Request coreRequest, Response coreResponse, Callback callback, int statusCode, String reason, Throwable cause)
+        public void writeHttpError(Request coreRequest, Response coreResponse, Callback callback, int statusCode, String reason, Throwable cause)
         {
             HttpServletRequest request = getServletRequest(coreRequest);
             HttpServletResponse response = getServletResponse(coreResponse);
@@ -1028,7 +1040,7 @@ public class DefaultServlet extends HttpServlet
         }
 
         @Override
-        protected boolean passConditionalHeaders(Request request, Response response, HttpContent content, Callback callback) throws IOException
+        public boolean passConditionalHeaders(Request request, Response response, HttpContent content, Callback callback) throws IOException
         {
             boolean included = getServletRequest(request).getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI) != null;
             if (included)

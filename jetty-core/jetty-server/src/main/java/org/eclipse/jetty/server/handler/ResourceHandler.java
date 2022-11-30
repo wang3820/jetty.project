@@ -14,6 +14,7 @@
 package org.eclipse.jetty.server.handler;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jetty.http.CompressedContentFormat;
@@ -29,7 +30,9 @@ import org.eclipse.jetty.server.content.FileMappingHttpContentFactory;
 import org.eclipse.jetty.server.content.HttpContent;
 import org.eclipse.jetty.server.content.PreCompressedHttpContentFactory;
 import org.eclipse.jetty.server.content.ResourceHttpContentFactory;
+import org.eclipse.jetty.server.content.StaticContentFactory;
 import org.eclipse.jetty.server.content.ValidatingCachingHttpContentFactory;
+import org.eclipse.jetty.server.content.WelcomeHttpContentFactory;
 import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.resource.ResourceFactory;
@@ -53,11 +56,15 @@ import org.eclipse.jetty.util.resource.Resources;
 public class ResourceHandler extends Handler.Wrapper
 {
     private final ResourceService _resourceService;
-
     private ByteBufferPool _byteBufferPool;
     private Resource _resourceBase;
+    private Resource _styleSheet;
+    private boolean _redirectWelcome;
     private MimeTypes _mimeTypes;
     private List<String> _welcomes = List.of("index.html");
+    private List<CompressedContentFormat> _compressedContentFormats = new ArrayList<>();
+    private int _encodingCacheSize = 100;
+    private long _validationPeriod = Duration.ofSeconds(1).toMillis();
 
     public ResourceHandler()
     {
@@ -77,11 +84,7 @@ public class ResourceHandler extends Handler.Wrapper
         _mimeTypes = context == null ? MimeTypes.DEFAULTS : context.getMimeTypes();
 
         _byteBufferPool = getByteBufferPool(context);
-        _resourceService.setHttpContentFactory(newHttpContentFactory());
-        _resourceService.setWelcomeFactory(setupWelcomeFactory());
-        if (_resourceService.getStyleSheet() == null)
-            setStyleSheet(getServer().getDefaultStyleSheet());
-
+        _resourceService.setHttpContentFactory(newHttpContentFactory(_resourceService));
         super.doStart();
     }
 
@@ -101,16 +104,18 @@ public class ResourceHandler extends Handler.Wrapper
         return _resourceService.getHttpContentFactory();
     }
 
-    protected HttpContent.Factory newHttpContentFactory()
+    protected HttpContent.Factory newHttpContentFactory(ResourceService resourceService)
     {
-        HttpContent.Factory contentFactory = new ResourceHttpContentFactory(ResourceFactory.of(_resourceBase), _mimeTypes);
-        contentFactory = new PreCompressedHttpContentFactory(contentFactory, _resourceService.getPrecompressedFormats());
-        contentFactory = new FileMappingHttpContentFactory(contentFactory);
-        contentFactory = new ValidatingCachingHttpContentFactory(contentFactory, Duration.ofSeconds(1).toMillis(), _byteBufferPool);
+        HttpContent.Factory contentFactory = new ResourceHttpContentFactory(ResourceFactory.of(getBaseResource()), getMimeTypes(), resourceService);
+        contentFactory = new FileMappingHttpContentFactory(contentFactory, resourceService);
+        contentFactory = new StaticContentFactory(contentFactory, resourceService, getStyleSheet());
+        contentFactory = new WelcomeHttpContentFactory(contentFactory, resourceService, setupWelcomeFactory(), isRedirectWelcome());
+        contentFactory = new ValidatingCachingHttpContentFactory(contentFactory, resourceService, getValidationPeriod(), getByteBufferPool());
+        contentFactory = new PreCompressedHttpContentFactory(contentFactory, resourceService, getPrecompressedFormats(), getEncodingCacheSize());
         return contentFactory;
     }
 
-    protected ResourceService.WelcomeFactory setupWelcomeFactory()
+    protected WelcomeHttpContentFactory.WelcomeFactory setupWelcomeFactory()
     {
         return request ->
         {
@@ -180,7 +185,7 @@ public class ResourceHandler extends Handler.Wrapper
      */
     public Resource getStyleSheet()
     {
-        return _resourceService.getStyleSheet();
+        return (_styleSheet != null) ? _styleSheet : getServer().getDefaultStyleSheet();
     }
 
     public List<String> getWelcomeFiles()
@@ -213,19 +218,11 @@ public class ResourceHandler extends Handler.Wrapper
     }
 
     /**
-     * @return Precompressed resources formats that can be used to serve compressed variant of resources.
-     */
-    public List<CompressedContentFormat> getPrecompressedFormats()
-    {
-        return _resourceService.getPrecompressedFormats();
-    }
-
-    /**
      * @return If true, welcome files are redirected rather than forwarded to.
      */
     public boolean isRedirectWelcome()
     {
-        return _resourceService.isRedirectWelcome();
+        return _redirectWelcome;
     }
 
     /**
@@ -305,17 +302,25 @@ public class ResourceHandler extends Handler.Wrapper
      */
     public void setPrecompressedFormats(List<CompressedContentFormat> precompressedFormats)
     {
-        _resourceService.setPrecompressedFormats(precompressedFormats);
+        _compressedContentFormats = precompressedFormats;
+    }
+
+    /**
+     * @return Precompressed resources formats that can be used to serve compressed variant of resources.
+     */
+    public List<CompressedContentFormat> getPrecompressedFormats()
+    {
+        return _compressedContentFormats;
     }
 
     public void setEncodingCacheSize(int encodingCacheSize)
     {
-        _resourceService.setEncodingCacheSize(encodingCacheSize);
+        _encodingCacheSize = encodingCacheSize;
     }
 
     public int getEncodingCacheSize()
     {
-        return _resourceService.getEncodingCacheSize();
+        return _encodingCacheSize;
     }
 
     /**
@@ -325,7 +330,7 @@ public class ResourceHandler extends Handler.Wrapper
      */
     public void setRedirectWelcome(boolean redirectWelcome)
     {
-        _resourceService.setRedirectWelcome(redirectWelcome);
+        _redirectWelcome = redirectWelcome;
     }
 
     /**
@@ -333,7 +338,7 @@ public class ResourceHandler extends Handler.Wrapper
      */
     public void setStyleSheet(Resource styleSheet)
     {
-        _resourceService.setStyleSheet(styleSheet);
+        _styleSheet = styleSheet;
     }
 
     public void setWelcomeFiles(String... welcomeFiles)
@@ -344,6 +349,21 @@ public class ResourceHandler extends Handler.Wrapper
     public void setWelcomeFiles(List<String> welcomeFiles)
     {
         _welcomes = welcomeFiles;
+    }
+
+    public long getValidationPeriod()
+    {
+        return _validationPeriod;
+    }
+
+    public void setValidationPeriod(long _validationPeriod)
+    {
+        this._validationPeriod = _validationPeriod;
+    }
+
+    public ByteBufferPool getByteBufferPool()
+    {
+        return _byteBufferPool;
     }
 
     /**

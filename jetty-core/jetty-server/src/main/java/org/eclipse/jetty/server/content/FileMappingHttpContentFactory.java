@@ -17,7 +17,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
+import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.ResourceService;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.BufferUtil;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.thread.AutoLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +34,7 @@ public class FileMappingHttpContentFactory implements HttpContent.Factory
 
     private final HttpContent.Factory _factory;
     private final int _minFileSize;
+    private final ResourceService _resourceService;
 
     /**
      * Construct a {@link FileMappingHttpContentFactory} which can use file mapped buffers.
@@ -37,9 +43,9 @@ public class FileMappingHttpContentFactory implements HttpContent.Factory
      *
      * @param factory the wrapped {@link HttpContent.Factory} to use.
      */
-    public FileMappingHttpContentFactory(HttpContent.Factory factory)
+    public FileMappingHttpContentFactory(HttpContent.Factory factory, ResourceService resourceService)
     {
-        this(factory, DEFAULT_MIN_FILE_SIZE);
+        this(factory, DEFAULT_MIN_FILE_SIZE, resourceService);
     }
 
     /**
@@ -48,10 +54,11 @@ public class FileMappingHttpContentFactory implements HttpContent.Factory
      * @param factory the wrapped {@link HttpContent.Factory} to use.
      * @param minFileSize the minimum size of an {@link HttpContent} before trying to use a file mapped buffer.
      */
-    public FileMappingHttpContentFactory(HttpContent.Factory factory, int minFileSize)
+    public FileMappingHttpContentFactory(HttpContent.Factory factory, int minFileSize, ResourceService resourceService)
     {
         _factory = Objects.requireNonNull(factory);
         _minFileSize = minFileSize;
+        _resourceService = resourceService;
     }
 
     @Override
@@ -67,7 +74,7 @@ public class FileMappingHttpContentFactory implements HttpContent.Factory
         return content;
     }
 
-    private static class FileMappedHttpContent extends HttpContent.Wrapper
+    private class FileMappedHttpContent extends HttpContent.Wrapper
     {
         private static final ByteBuffer SENTINEL_BUFFER = BufferUtil.allocate(0);
 
@@ -94,6 +101,23 @@ public class FileMappingHttpContentFactory implements HttpContent.Factory
                     _buffer = getMappedByteBuffer();
                 return (_buffer == SENTINEL_BUFFER) ? super.getByteBuffer() : _buffer;
             }
+        }
+
+        @Override
+        public void process(Request request, Response response, Callback callback) throws Exception
+        {
+            ByteBuffer buffer = getByteBuffer();
+            if (buffer == null || buffer == SENTINEL_BUFFER)
+            {
+                super.process(request, response, callback);
+                return;
+            }
+
+            if (request.getHeaders().contains(HttpHeader.RANGE))
+                super.process(request, response, callback);
+
+            _resourceService.putHeaders(response, this, ResourceService.USE_KNOWN_CONTENT_LENGTH);
+            response.write(true, _buffer, callback);
         }
 
         @Override

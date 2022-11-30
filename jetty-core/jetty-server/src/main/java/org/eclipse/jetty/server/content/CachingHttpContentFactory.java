@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.time.Instant;
-import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,7 +24,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.MimeTypes;
@@ -34,6 +32,7 @@ import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.NoopByteBufferPool;
 import org.eclipse.jetty.io.Retainable;
 import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
@@ -42,6 +41,8 @@ import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.eclipse.jetty.server.ResourceService.USE_KNOWN_CONTENT_LENGTH;
 
 /**
  * <p>
@@ -73,15 +74,17 @@ public class CachingHttpContentFactory implements HttpContent.Factory
     private final ConcurrentHashMap<String, CachingHttpContent> _cache = new ConcurrentHashMap<>();
     private final AtomicLong _cachedSize = new AtomicLong();
     private final ByteBufferPool _byteBufferPool;
+    private final ResourceService _resourceService;
     private int _maxCachedFileSize = DEFAULT_MAX_CACHED_FILE_SIZE;
     private int _maxCachedFiles = DEFAULT_MAX_CACHED_FILES;
     private long _maxCacheSize = DEFAULT_MAX_CACHE_SIZE;
     private boolean _useDirectByteBuffers = true;
 
-    public CachingHttpContentFactory(HttpContent.Factory authority, ByteBufferPool byteBufferPool)
+    public CachingHttpContentFactory(HttpContent.Factory authority, ByteBufferPool byteBufferPool, ResourceService resourceService)
     {
         _authority = authority;
         _byteBufferPool = (byteBufferPool == null) ? new NoopByteBufferPool() : byteBufferPool;
+        _resourceService = resourceService;
     }
 
     protected ConcurrentMap<String, CachingHttpContent> getCache()
@@ -302,7 +305,6 @@ public class CachingHttpContentFactory implements HttpContent.Factory
         private final HttpField _etagField;
         private final long _contentLengthValue;
         private volatile long _lastAccessed;
-        private final Set<CompressedContentFormat> _compressedFormats;
         private final String _lastModifiedValue;
         private final String _characterEncoding;
         private final MimeTypes.Type _mimeType;
@@ -367,7 +369,6 @@ public class CachingHttpContentFactory implements HttpContent.Factory
             _bytesOccupied = httpContent.getBytesOccupied();
             _lastModifiedValue = httpContent.getLastModifiedValue();
             _characterEncoding = httpContent.getCharacterEncoding();
-            _compressedFormats = httpContent.getPreCompressedContentFormats();
             _mimeType = httpContent.getMimeType();
             _contentLength = httpContent.getContentLength();
             _lastModifiedInstant = httpContent.getLastModifiedInstant();
@@ -426,12 +427,6 @@ public class CachingHttpContentFactory implements HttpContent.Factory
                     _byteBufferPool.release(_buffer);
                 super.release();
             }
-        }
-
-        @Override
-        public Set<CompressedContentFormat> getPreCompressedContentFormats()
-        {
-            return _compressedFormats;
         }
 
         @Override
@@ -497,10 +492,10 @@ public class CachingHttpContentFactory implements HttpContent.Factory
                 return;
             }
 
-            // TODO
             if (request.getHeaders().contains(HttpHeader.RANGE))
                 super.process(request, response, callback);
 
+            _resourceService.putHeaders(response, this, USE_KNOWN_CONTENT_LENGTH);
             response.write(true, _buffer, callback);
         }
     }
@@ -621,12 +616,6 @@ public class CachingHttpContentFactory implements HttpContent.Factory
 
         @Override
         public ByteBuffer getByteBuffer()
-        {
-            return null;
-        }
-
-        @Override
-        public Set<CompressedContentFormat> getPreCompressedContentFormats()
         {
             return null;
         }

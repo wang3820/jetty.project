@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.jetty.io.ByteBufferPool;
+import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.util.NanoTime;
 import org.eclipse.jetty.util.annotation.Name;
 import org.eclipse.jetty.util.thread.Scheduler;
@@ -58,10 +59,11 @@ public class ValidatingCachingHttpContentFactory extends CachingHttpContentFacto
      * @param byteBufferPool the {@link org.eclipse.jetty.io.ByteBufferPool} to use.
      */
     public ValidatingCachingHttpContentFactory(@Name("authority") HttpContent.Factory authority,
+                                               @Name("resourceService") ResourceService resourceService,
                                                @Name("validationPeriod") long validationPeriod,
                                                @Name("byteBufferPool") ByteBufferPool byteBufferPool)
     {
-        this(authority, validationPeriod, byteBufferPool, null, -1, -1);
+        this(authority, resourceService, validationPeriod, byteBufferPool, null, -1, -1);
     }
 
     /**
@@ -76,13 +78,14 @@ public class ValidatingCachingHttpContentFactory extends CachingHttpContentFacto
      * @param idleTimeout amount of time in ms an entry can be unused before evicted by the sweeper (if 0 never evict unused entries).
      */
     public ValidatingCachingHttpContentFactory(@Name("authority") HttpContent.Factory authority,
+                                               @Name("resourceService") ResourceService resourceService,
                                                @Name("validationPeriod") long validationPeriod,
                                                @Name("byteBufferPool") ByteBufferPool byteBufferPool,
                                                @Name("scheduler") Scheduler scheduler,
                                                @Name("sweepPeriod") long sweepPeriod,
                                                @Name("idleTimeout") long idleTimeout)
     {
-        super(authority, byteBufferPool);
+        super(authority, byteBufferPool, resourceService);
         _validationTime = validationPeriod;
         _scheduler = scheduler;
         _sweepDelay = sweepPeriod;

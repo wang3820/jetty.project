@@ -14,19 +14,9 @@
 package org.eclipse.jetty.server;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.InvalidPathException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jetty.http.ByteRange;
-import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.DateParser;
 import org.eclipse.jetty.http.EtagUtils;
 import org.eclipse.jetty.http.HttpField;
@@ -37,15 +27,11 @@ import org.eclipse.jetty.http.MultiPart;
 import org.eclipse.jetty.http.MultiPartByteRanges;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.QuotedCSV;
-import org.eclipse.jetty.http.QuotedQualityCSV;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.server.content.HttpContent;
-import org.eclipse.jetty.server.content.PreCompressedHttpContent;
-import org.eclipse.jetty.server.content.ResourceHttpContent;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.URIUtil;
-import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,41 +41,19 @@ import org.slf4j.LoggerFactory;
 public class ResourceService
 {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceService.class);
-    private static final int NO_CONTENT_LENGTH = -1;
-    private static final int USE_KNOWN_CONTENT_LENGTH = -2;
 
-    private final List<CompressedContentFormat> _precompressedFormats = new ArrayList<>();
-    private final Map<String, List<String>> _preferredEncodingOrderCache = new ConcurrentHashMap<>();
-    private final List<String> _preferredEncodingOrder = new ArrayList<>();
-    private WelcomeFactory _welcomeFactory;
-    private boolean _redirectWelcome = false;
+    public static final int NO_CONTENT_LENGTH = -1;
+    public static final int USE_KNOWN_CONTENT_LENGTH = -2;
+
     private boolean _etags = false;
     private List<String> _gzipEquivalentFileExtensions;
     private HttpContent.Factory _contentFactory;
-    private int _encodingCacheSize = 100;
     private boolean _dirAllowed = true;
     private boolean _acceptRanges = true;
     private HttpField _cacheControl;
-    private Resource _styleSheet;
 
     public ResourceService()
     {
-    }
-
-    /**
-     * @param stylesheet The location of the stylesheet to be used as a String.
-     */
-    public void setStyleSheet(Resource stylesheet)
-    {
-        _styleSheet = stylesheet;
-    }
-
-    /**
-     * @return Returns the stylesheet as a Resource.
-     */
-    public Resource getStyleSheet()
-    {
-        return _styleSheet;
     }
 
     public HttpContent getContent(String path, Request request) throws IOException
@@ -100,37 +64,6 @@ public class ResourceService
             AliasCheck aliasCheck = ContextHandler.getContextHandler(request);
             if (aliasCheck != null && !aliasCheck.checkAlias(path, content.getResource()))
                 return null;
-
-            Collection<CompressedContentFormat> compressedContentFormats = (content.getPreCompressedContentFormats() == null)
-                ? _precompressedFormats : content.getPreCompressedContentFormats();
-            if (!compressedContentFormats.isEmpty())
-            {
-                List<String> preferredEncodingOrder = getPreferredEncodingOrder(request);
-                if (!preferredEncodingOrder.isEmpty())
-                {
-                    for (String encoding : preferredEncodingOrder)
-                    {
-                        CompressedContentFormat contentFormat = isEncodingAvailable(encoding, compressedContentFormats);
-                        if (contentFormat == null)
-                            continue;
-
-                        HttpContent preCompressedContent = _contentFactory.getContent(path + contentFormat.getExtension());
-                        if (preCompressedContent == null)
-                            continue;
-
-                        if (aliasCheck != null && !aliasCheck.checkAlias(path, preCompressedContent.getResource()))
-                            continue;
-
-                        return new PreCompressedHttpContent(content, preCompressedContent, contentFormat);
-                    }
-                }
-            }
-        }
-        else
-        {
-            // TODO: can this go in a "StaticContentFactory" that goes after ResourceContentFactory?
-            if ((_styleSheet != null) && (path != null) && path.endsWith("/jetty-dir.css"))
-                content = new ResourceHttpContent(_styleSheet, "text/css");
         }
 
         return content;
@@ -172,106 +105,70 @@ public class ResourceService
             // Directory?
             if (content.getResource().isDirectory())
             {
-                sendWelcome(content, pathInContext, endsWithSlash, request, response, callback);
-                return;
+                if (!endsWithSlash)
+                {
+                    // Redirect to directory
+                    HttpURI.Mutable uri = HttpURI.build(request.getHttpURI());
+                    if (!uri.getCanonicalPath().endsWith("/"))
+                    {
+                        uri.path(uri.getCanonicalPath() + "/");
+                        response.getHeaders().putLongField(HttpHeader.CONTENT_LENGTH, 0);
+                        sendRedirect(request, response, callback, uri.getPathQuery());
+                        return;
+                    }
+                }
             }
-
-            // Strip slash?
-            if (endsWithSlash && pathInContext.length() > 1)
+            else
             {
-                // TODO need helper code to edit URIs
-                String q = request.getHttpURI().getQuery();
-                pathInContext = pathInContext.substring(0, pathInContext.length() - 1);
-                if (q != null && q.length() != 0)
-                    pathInContext += "?" + q;
-                sendRedirect(request, response, callback, URIUtil.addPaths(request.getContext().getContextPath(), pathInContext));
-                return;
+                // Strip slash?
+                if (endsWithSlash && pathInContext.length() > 1)
+                {
+                    // TODO need helper code to edit URIs
+                    String q = request.getHttpURI().getQuery();
+                    pathInContext = pathInContext.substring(0, pathInContext.length() - 1);
+                    if (q != null && q.length() != 0)
+                        pathInContext += "?" + q;
+                    sendRedirect(request, response, callback, URIUtil.addPaths(request.getContext().getContextPath(), pathInContext));
+                    return;
+                }
+
+                // Conditional response?
+                if (passConditionalHeaders(request, response, content, callback))
+                    return;
+
+                if (isImplicitlyGzippedContent(pathInContext))
+                    response.getHeaders().put(HttpHeader.CONTENT_ENCODING, "gzip");
             }
 
-            // Conditional response?
-            if (passConditionalHeaders(request, response, content, callback))
-                return;
-
-            if (content.getPreCompressedContentFormats() == null || !content.getPreCompressedContentFormats().isEmpty())
-                response.getHeaders().put(HttpHeader.VARY, HttpHeader.ACCEPT_ENCODING.asString());
-
-            HttpField contentEncoding = content.getContentEncoding();
-            if (contentEncoding != null)
-                response.getHeaders().put(contentEncoding);
-            else if (isImplicitlyGzippedContent(pathInContext))
-                response.getHeaders().put(HttpHeader.CONTENT_ENCODING, "gzip");
-
-            // Send the data
+            // Send the data.
             sendData(request, response, callback, content);
         }
-        // Can be thrown from contentFactory.getContent() call when using invalid characters
-        catch (InvalidPathException e) // TODO: this cannot trigger here, as contentFactory.getContent() isn't called in this try block
+        catch (Throwable t)
         {
-            if (LOG.isDebugEnabled())
-                LOG.debug("InvalidPathException for pathInContext: {}", pathInContext, e);
-            writeHttpError(request, response, callback, HttpStatus.NOT_FOUND_404);
-        }
-        catch (IllegalArgumentException e)
-        {
-            LOG.warn("Failed to serve resource: {}", pathInContext, e);
+            LOG.warn("Failed to serve resource: {}", pathInContext, t);
             if (!response.isCommitted())
-                writeHttpError(request, response, callback, e);
+                writeHttpError(request, response, callback, t);
         }
     }
 
-    protected void writeHttpError(Request request, Response response, Callback callback, int status)
+    public void writeHttpError(Request request, Response response, Callback callback, int status)
     {
         Response.writeError(request, response, callback, status);
     }
 
-    protected void writeHttpError(Request request, Response response, Callback callback, Throwable cause)
+    public void writeHttpError(Request request, Response response, Callback callback, Throwable cause)
     {
         Response.writeError(request, response, callback, cause);
     }
 
-    protected void writeHttpError(Request request, Response response, Callback callback, int status, String msg, Throwable cause)
+    public void writeHttpError(Request request, Response response, Callback callback, int status, String msg, Throwable cause)
     {
         Response.writeError(request, response, callback, status, msg, cause);
     }
 
-    protected void sendRedirect(Request request, Response response, Callback callback, String target)
+    public void sendRedirect(Request request, Response response, Callback callback, String target)
     {
         Response.sendRedirect(request, response, callback, target);
-    }
-
-    private List<String> getPreferredEncodingOrder(Request request)
-    {
-        Enumeration<String> headers = request.getHeaders().getValues(HttpHeader.ACCEPT_ENCODING.asString());
-        if (!headers.hasMoreElements())
-            return Collections.emptyList();
-
-        String key = headers.nextElement();
-        if (headers.hasMoreElements())
-        {
-            StringBuilder sb = new StringBuilder(key.length() * 2);
-            do
-            {
-                sb.append(',').append(headers.nextElement());
-            }
-            while (headers.hasMoreElements());
-            key = sb.toString();
-        }
-
-        List<String> values = _preferredEncodingOrderCache.get(key);
-        if (values == null)
-        {
-            QuotedQualityCSV encodingQualityCSV = new QuotedQualityCSV(_preferredEncodingOrder);
-            encodingQualityCSV.addValue(key);
-            values = encodingQualityCSV.getValues();
-
-            // keep cache size in check even if we get strange/malicious input
-            if (_preferredEncodingOrderCache.size() > _encodingCacheSize)
-                _preferredEncodingOrderCache.clear();
-
-            _preferredEncodingOrderCache.put(key, values);
-        }
-
-        return values;
     }
 
     private boolean isImplicitlyGzippedContent(String path)
@@ -287,26 +184,10 @@ public class ResourceService
         return false;
     }
 
-    private CompressedContentFormat isEncodingAvailable(String encoding, Collection<CompressedContentFormat> availableFormats)
-    {
-        if (availableFormats.isEmpty())
-            return null;
-
-        for (CompressedContentFormat format : availableFormats)
-        {
-            if (format.getEncoding().equals(encoding))
-                return format;
-        }
-
-        if ("*".equals(encoding))
-            return availableFormats.iterator().next();
-        return null;
-    }
-
     /**
      * @return true if the request was processed, false otherwise.
      */
-    protected boolean passConditionalHeaders(Request request, Response response, HttpContent content, Callback callback) throws IOException
+    public boolean passConditionalHeaders(Request request, Response response, HttpContent content, Callback callback) throws IOException
     {
         try
         {
@@ -445,131 +326,9 @@ public class ResourceService
         return null;
     }
 
-    protected void sendWelcome(HttpContent content, String pathInContext, boolean endsWithSlash, Request request, Response response, Callback callback) throws Exception
-    {
-        // Redirect to directory
-        if (!endsWithSlash)
-        {
-            HttpURI.Mutable uri = HttpURI.build(request.getHttpURI());
-            if (!uri.getCanonicalPath().endsWith("/"))
-            {
-                uri.path(uri.getCanonicalPath() + "/");
-                response.getHeaders().putLongField(HttpHeader.CONTENT_LENGTH, 0);
-                // TODO: can writeRedirect (override) also work for WelcomeActionType.REDIRECT?
-                sendRedirect(request, response, callback, uri.getPathQuery());
-                return;
-            }
-        }
-
-        // process optional Welcome behaviors
-        if (welcome(request, response, callback))
-            return;
-
-        if (!passConditionalHeaders(request, response, content, callback))
-            sendDirectory(request, response, content, callback, pathInContext);
-    }
-
-    public enum WelcomeActionType
-    {
-        REDIRECT,
-        SERVE
-    }
-
-    /**
-     * Behavior for a potential welcome action
-     * as determined by {@link ResourceService#processWelcome(Request, Response)}
-     *
-     * <p>
-     * For {@link WelcomeActionType#REDIRECT} this is the resulting `Location` response header.
-     * For {@link WelcomeActionType#SERVE} this is the resulting path to for welcome serve, note that
-     * this is just a path, and can point to a real file, or a dynamic handler for
-     * welcome processing (such as Jetty core Handler, or EE Servlet), it's up
-     * to the implementation of {@link ResourceService#welcome(Request, Response, Callback)}
-     * to handle the various action types.
-     * </p>
-     *
-     * @param type the type of action
-     * @param target The target URI path of the action.
-     */
-    public record WelcomeAction(WelcomeActionType type, String target) {}
-
-    private boolean welcome(Request request, Response response, Callback callback) throws IOException
-    {
-        WelcomeAction welcomeAction = processWelcome(request, response);
-        if (welcomeAction == null)
-            return false;
-
-        welcomeActionProcess(request, response, callback, welcomeAction);
-        return true;
-    }
-
-    // TODO: could use a better name
-    protected void welcomeActionProcess(Request request, Response response, Callback callback, WelcomeAction welcomeAction) throws IOException
-    {
-        switch (welcomeAction.type)
-        {
-            case REDIRECT ->
-            {
-                response.getHeaders().putLongField(HttpHeader.CONTENT_LENGTH, 0);
-                sendRedirect(request, response, callback, welcomeAction.target);
-            }
-            case SERVE ->
-            {
-                // TODO : check conditional headers.
-                HttpContent c = _contentFactory.getContent(welcomeAction.target);
-                sendData(request, response, callback, c);
-            }
-        }
-    }
-
-    private WelcomeAction processWelcome(Request request, Response response) throws IOException
-    {
-        String welcomeTarget = _welcomeFactory.getWelcomeTarget(request);
-        if (welcomeTarget == null)
-            return null;
-
-        String contextPath = request.getContext().getContextPath();
-
-        if (LOG.isDebugEnabled())
-            LOG.debug("welcome={}", welcomeTarget);
-
-        if (_redirectWelcome)
-        {
-            // Redirect to the index
-            response.getHeaders().putLongField(HttpHeader.CONTENT_LENGTH, 0);
-            HttpURI.Mutable uri = HttpURI.build(request.getHttpURI());
-            uri.path(URIUtil.addPaths(contextPath, welcomeTarget));
-            return new WelcomeAction(WelcomeActionType.REDIRECT, uri.getPathQuery());
-        }
-
-        // Serve welcome file
-        return new WelcomeAction(WelcomeActionType.SERVE, welcomeTarget);
-    }
-
-    private void sendDirectory(Request request, Response response, HttpContent httpContent, Callback callback, String pathInContext)
-    {
-        if (!_dirAllowed)
-        {
-            writeHttpError(request, response, callback, HttpStatus.FORBIDDEN_403);
-            return;
-        }
-
-        String base = URIUtil.addEncodedPaths(request.getHttpURI().getPath(), "/");
-        String listing = ResourceListing.getAsXHTML(httpContent.getResource(), base, pathInContext.length() > 1, request.getHttpURI().getQuery());
-        if (listing == null)
-        {
-            writeHttpError(request, response, callback, HttpStatus.FORBIDDEN_403);
-            return;
-        }
-
-        byte[] data = listing.getBytes(StandardCharsets.UTF_8);
-        response.getHeaders().put(HttpHeader.CONTENT_TYPE, "text/html;charset=utf-8");
-        response.getHeaders().putLongField(HttpHeader.CONTENT_LENGTH, data.length);
-        response.write(true, ByteBuffer.wrap(data), callback);
-    }
-
     private void sendData(Request request, Response response, Callback callback, HttpContent content)
     {
+        // TODO: The HttpContent does processing of Ranges itself.
         long contentLength = content.getContentLengthValue();
         callback = Callback.from(callback, content::release);
 
@@ -624,7 +383,7 @@ public class ResourceService
         Content.copy(byteRanges, response, callback);
     }
 
-    protected void writeHttpContent(Request request, Response response, Callback callback, HttpContent content)
+    public void writeHttpContent(Request request, Response response, Callback callback, HttpContent content)
     {
         try
         {
@@ -636,7 +395,7 @@ public class ResourceService
         }
     }
 
-    protected void putHeaders(Response response, HttpContent content, long contentLength)
+    public void putHeaders(Response response, HttpContent content, long contentLength)
     {
         // TODO it is very inefficient to do many put's to a HttpFields, as each put is a full iteration.
         //      it might be better remove headers en masse and then just add the extras:
@@ -714,27 +473,6 @@ public class ResourceService
     }
 
     /**
-     * @return Precompressed resources formats that can be used to serve compressed variant of resources.
-     */
-    public List<CompressedContentFormat> getPrecompressedFormats()
-    {
-        return _precompressedFormats;
-    }
-
-    /**
-     * @return If true, welcome files are redirected rather than forwarded to.
-     */
-    public boolean isRedirectWelcome()
-    {
-        return _redirectWelcome;
-    }
-
-    public WelcomeFactory getWelcomeFactory()
-    {
-        return _welcomeFactory;
-    }
-
-    /**
      * @param acceptRanges If true, range requests and responses are supported
      */
     public void setAcceptRanges(boolean acceptRanges)
@@ -772,57 +510,5 @@ public class ResourceService
     public void setGzipEquivalentFileExtensions(List<String> gzipEquivalentFileExtensions)
     {
         _gzipEquivalentFileExtensions = gzipEquivalentFileExtensions;
-    }
-
-    /**
-     * @param precompressedFormats The list of precompresed formats to serve in encoded format if matching resource found.
-     * For example serve gzip encoded file if ".gz" suffixed resource is found.
-     */
-    public void setPrecompressedFormats(List<CompressedContentFormat> precompressedFormats)
-    {
-        _precompressedFormats.clear();
-        _precompressedFormats.addAll(precompressedFormats);
-        // TODO: this preferred encoding order should be a separate configurable
-        _preferredEncodingOrder.clear();
-        _preferredEncodingOrder.addAll(_precompressedFormats.stream().map(CompressedContentFormat::getEncoding).toList());
-    }
-
-    public void setEncodingCacheSize(int encodingCacheSize)
-    {
-        _encodingCacheSize = encodingCacheSize;
-        if (encodingCacheSize > _preferredEncodingOrderCache.size())
-            _preferredEncodingOrderCache.clear();
-    }
-
-    public int getEncodingCacheSize()
-    {
-        return _encodingCacheSize;
-    }
-
-    /**
-     * @param redirectWelcome If true, welcome files are redirected rather than forwarded to.
-     * redirection is always used if the ResourceHandler is not scoped by
-     * a ContextHandler
-     */
-    public void setRedirectWelcome(boolean redirectWelcome)
-    {
-        _redirectWelcome = redirectWelcome;
-    }
-
-    public void setWelcomeFactory(WelcomeFactory welcomeFactory)
-    {
-        _welcomeFactory = welcomeFactory;
-    }
-
-    public interface WelcomeFactory
-    {
-        /**
-         * Finds a matching welcome target URI path for the request.
-         *
-         * @param request the request to use to determine the matching welcome target from.
-         * @return The URI path of the matching welcome target in context or null
-         * (null means no welcome target was found)
-         */
-        String getWelcomeTarget(Request request) throws IOException;
     }
 }

@@ -33,13 +33,10 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.content.HttpContent;
-import org.eclipse.jetty.server.content.ResourceHttpContentFactory;
 import org.eclipse.jetty.toolchain.test.jupiter.WorkDir;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.component.LifeCycle;
-import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -96,15 +93,10 @@ public class TryPathsHandlerTest
     @Test
     public void testTryPaths() throws Exception
     {
-        ResourceHandler resourceHandler = new ResourceHandler()
-        {
-            @Override
-            protected HttpContent.Factory newHttpContentFactory()
-            {
-                // We don't want to cache not found entries for this test.
-                return new ResourceHttpContentFactory(ResourceFactory.of(getBaseResource()), getMimeTypes());
-            }
-        };
+        ResourceHandler resourceHandler = new ResourceHandler();
+
+        // We don't want to cache not found entries for this test.
+        resourceHandler.setValidationPeriod(-1);
 
         resourceHandler.setDirAllowed(false);
         resourceHandler.setHandler(new Handler.Abstract()
@@ -171,15 +163,11 @@ public class TryPathsHandlerTest
     @Test
     public void testTryPathsWithPathMappings() throws Exception
     {
-        ResourceHandler resourceHandler = new ResourceHandler()
-        {
-            @Override
-            protected HttpContent.Factory newHttpContentFactory()
-            {
-                // We don't want to cache not found entries for this test.
-                return new ResourceHttpContentFactory(ResourceFactory.of(getBaseResource()), getMimeTypes());
-            }
-        };
+        ResourceHandler resourceHandler = new ResourceHandler();
+
+        // We don't want to cache not found entries for this test.
+        resourceHandler.setValidationPeriod(-1);
+
         resourceHandler.setDirAllowed(false);
 
         PathMappingsHandler pathMappingsHandler = new PathMappingsHandler();

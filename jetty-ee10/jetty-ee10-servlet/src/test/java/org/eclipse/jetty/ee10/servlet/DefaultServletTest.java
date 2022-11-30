@@ -38,7 +38,6 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.DateGenerator;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
@@ -2732,23 +2731,10 @@ public class DefaultServletTest
         Files.writeString(docRoot.resolve("data0.txt.bz2"), "fake bzip2", UTF_8);
 
         DefaultServlet defaultServlet = new DefaultServlet();
-        ServletHolder defholder = new ServletHolder(defaultServlet)
-        {
-            @Override
-            public void initialize() throws Exception
-            {
-                super.initialize();
-                ResourceService resourceService = defaultServlet.getResourceService();
-                resourceService.setPrecompressedFormats(List.of(
-                    new CompressedContentFormat("bzip2", ".bz2"),
-                    new CompressedContentFormat("gzip", ".gz"),
-                    new CompressedContentFormat("br", ".br")
-                ));
-            }
-        };
-
-        context.addServlet(defholder, "/");
+        ServletHolder defholder = new ServletHolder(defaultServlet);
+        defholder.setInitParameter("precompressed", "bzip2=.bz2, gzip=.gzip, br=.br");
         defholder.setInitParameter("resourceBase", docRoot.toString());
+        context.addServlet(defholder, "/");
 
         String rawResponse;
         HttpTester.Response response;
