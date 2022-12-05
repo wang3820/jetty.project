@@ -341,23 +341,6 @@ public class ResourceService
 
     public void putHeaders(Response response, HttpContent content, long contentLength)
     {
-        // TODO it is very inefficient to do many put's to a HttpFields, as each put is a full iteration.
-        //      it might be better remove headers en masse and then just add the extras:
-        // NOTE: If these headers come from a Servlet Filter we shouldn't override them here.
-//        headers.remove(EnumSet.of(
-//            HttpHeader.LAST_MODIFIED,
-//            HttpHeader.CONTENT_LENGTH,
-//            HttpHeader.CONTENT_TYPE,
-//            HttpHeader.CONTENT_ENCODING,
-//            HttpHeader.ETAG,
-//            HttpHeader.ACCEPT_RANGES,
-//            HttpHeader.CACHE_CONTROL
-//            ));
-//        HttpField lm = content.getLastModified();
-//        if (lm != null)
-//            headers.add(lm);
-//        etc.
-
         HttpField lm = content.getLastModified();
         if (lm != null)
             response.getHeaders().put(lm);

@@ -179,8 +179,6 @@ public class WelcomeHttpContentFactory implements HttpContent.Factory
 
         if (!_resourceService.passConditionalHeaders(request, response, content, callback))
             sendDirectory(content, request, response, callback);
-
-        // TODO: What if passConditionalHeaders returns true;
     }
 
     private boolean welcome(Request request, Response response, Callback callback) throws IOException
@@ -251,8 +249,9 @@ public class WelcomeHttpContentFactory implements HttpContent.Factory
             }
             case SERVE ->
             {
-                // TODO : check conditional headers.
                 HttpContent content = _factory.getContent(welcomeAction.target());
+                if (_resourceService.passConditionalHeaders(request, response, content, callback))
+                    return;
                 _resourceService.writeHttpContent(request, response, callback, content);
             }
         }
