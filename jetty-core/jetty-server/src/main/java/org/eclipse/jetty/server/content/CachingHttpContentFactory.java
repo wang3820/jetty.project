@@ -32,7 +32,6 @@ import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.NoopByteBufferPool;
 import org.eclipse.jetty.io.Retainable;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
@@ -41,8 +40,6 @@ import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.eclipse.jetty.server.ResourceService.USE_KNOWN_CONTENT_LENGTH;
 
 /**
  * <p>
@@ -492,11 +489,7 @@ public class CachingHttpContentFactory implements HttpContent.Factory
                 return;
             }
 
-            if (request.getHeaders().contains(HttpHeader.RANGE))
-                super.process(request, response, callback);
-
-            _resourceService.putHeaders(response, this, USE_KNOWN_CONTENT_LENGTH);
-            response.write(true, _buffer, callback);
+            RangeBufferUtil.writeBuffer(this, _resourceService, _buffer, request, response, callback);
         }
     }
 

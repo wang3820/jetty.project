@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.jetty.io.ByteBufferPool;
-import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.util.NanoTime;
 import org.eclipse.jetty.util.annotation.Name;
 import org.eclipse.jetty.util.thread.Scheduler;

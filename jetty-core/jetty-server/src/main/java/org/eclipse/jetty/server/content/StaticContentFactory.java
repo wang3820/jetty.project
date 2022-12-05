@@ -15,7 +15,6 @@ package org.eclipse.jetty.server.content;
 
 import java.io.IOException;
 
-import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.util.resource.Resource;
 
 public class StaticContentFactory implements HttpContent.Factory

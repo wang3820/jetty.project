@@ -22,7 +22,6 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.ResourceListing;
-import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.URIUtil;

@@ -17,9 +17,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
@@ -113,12 +111,7 @@ public class FileMappingHttpContentFactory implements HttpContent.Factory
                 return;
             }
 
-            // TODO: do this more efficiently with the buffer.
-            if (request.getHeaders().contains(HttpHeader.RANGE))
-                super.process(request, response, callback);
-
-            _resourceService.putHeaders(response, this, ResourceService.USE_KNOWN_CONTENT_LENGTH);
-            response.write(true, _buffer, callback);
+            RangeBufferUtil.writeBuffer(this, _resourceService, _buffer, request, response, callback);
         }
 
         @Override

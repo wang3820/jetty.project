@@ -27,7 +27,6 @@ import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.QuotedQualityCSV;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.content.HttpContent.Factory;
 import org.eclipse.jetty.util.Callback;

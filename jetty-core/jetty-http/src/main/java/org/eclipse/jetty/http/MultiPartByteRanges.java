@@ -240,11 +240,31 @@ public class MultiPartByteRanges extends CompletableFuture<MultiPartByteRanges.P
     }
 
     /**
+     * <p>A specialized {@link org.eclipse.jetty.io.content.ByteBufferContentSource}
+     * whose content is sliced by a byte range.</p>
+     */
+    public static class ByteBufferContentSource extends org.eclipse.jetty.io.content.ByteBufferContentSource
+    {
+        public ByteBufferContentSource(ByteBuffer byteBuffer, ByteRange byteRange)
+        {
+            super(getRangeByteBuffer(byteBuffer, byteRange));
+        }
+
+        private static ByteBuffer getRangeByteBuffer(ByteBuffer byteBuffer, ByteRange byteRange)
+        {
+            ByteBuffer slice = byteBuffer.slice();
+            slice.position(Math.toIntExact(byteRange.first()));
+            slice.limit(Math.toIntExact(byteRange.getLength()));
+            return slice;
+        }
+    }
+
+    /**
      * <p>A {@link MultiPart.Part} whose content is a byte range of a file.</p>
      */
     public static class Part extends MultiPart.Part
     {
-        private final PathContentSource content;
+        private final Content.Source content;
 
         public Part(String contentType, Path path, ByteRange byteRange, long contentLength)
         {
@@ -252,10 +272,26 @@ public class MultiPartByteRanges extends CompletableFuture<MultiPartByteRanges.P
                 .put(HttpHeader.CONTENT_RANGE, byteRange.toHeaderValue(contentLength)), path, byteRange);
         }
 
+        public Part(String contentType, ByteBuffer byteBuffer, ByteRange byteRange, long contentLength)
+        {
+            this(HttpFields.build().put(HttpHeader.CONTENT_TYPE, contentType)
+                .put(HttpHeader.CONTENT_RANGE, byteRange.toHeaderValue(contentLength)), byteBuffer, byteRange);
+        }
+
         public Part(HttpFields headers, Path path, ByteRange byteRange)
         {
+            this(headers, new PathContentSource(path, byteRange));
+        }
+
+        public Part(HttpFields headers, ByteBuffer buffer, ByteRange byteRange)
+        {
+            this(headers, new ByteBufferContentSource(buffer, byteRange));
+        }
+
+        public Part(HttpFields headers, Content.Source contentSource)
+        {
             super(null, null, headers);
-            content = new PathContentSource(path, byteRange);
+            content = contentSource;
         }
 
         @Override

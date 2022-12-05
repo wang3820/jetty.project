@@ -33,7 +33,6 @@ import org.eclipse.jetty.http.MultiPartByteRanges;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.ResourceService;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.Callback;
@@ -43,8 +42,8 @@ import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.eclipse.jetty.server.ResourceService.NO_CONTENT_LENGTH;
-import static org.eclipse.jetty.server.ResourceService.USE_KNOWN_CONTENT_LENGTH;
+import static org.eclipse.jetty.server.content.ResourceService.NO_CONTENT_LENGTH;
+import static org.eclipse.jetty.server.content.ResourceService.USE_KNOWN_CONTENT_LENGTH;
 
 /**
  * HttpContent created from a {@link Resource}.
@@ -181,7 +180,6 @@ public class ResourceHttpContent implements HttpContent
     public void process(Request request, Response response, Callback callback) throws Exception
     {
         long contentLength = getContentLengthValue();
-        callback = Callback.from(callback, this::release);
 
         if (LOG.isDebugEnabled())
             LOG.debug(String.format("sendData content=%s", this));

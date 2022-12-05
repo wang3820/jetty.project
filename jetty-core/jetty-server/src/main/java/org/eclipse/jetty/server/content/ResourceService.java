@@ -11,7 +11,7 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.server;
+package org.eclipse.jetty.server.content;
 
 import java.io.IOException;
 import java.util.List;
@@ -24,7 +24,9 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.QuotedCSV;
-import org.eclipse.jetty.server.content.HttpContent;
+import org.eclipse.jetty.server.AliasCheck;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.URIUtil;
@@ -95,6 +97,7 @@ public class ResourceService
     {
         String pathInContext = Request.getPathInContext(request);
         boolean endsWithSlash = pathInContext.endsWith("/");
+        callback = Callback.from(callback, content::release);
 
         try
         {
