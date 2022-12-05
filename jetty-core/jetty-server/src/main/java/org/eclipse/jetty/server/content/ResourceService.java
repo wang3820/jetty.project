@@ -140,7 +140,9 @@ public class ResourceService
             }
 
             // Send the data.
-            sendData(request, response, callback, content);
+            if (LOG.isDebugEnabled())
+                LOG.debug(String.format("sendData content=%s", content));
+            writeHttpContent(request, response, callback, content);
         }
         catch (Throwable t)
         {
@@ -323,15 +325,6 @@ public class ResourceService
 
         // no matches
         return null;
-    }
-
-    private void sendData(Request request, Response response, Callback callback, HttpContent content)
-    {
-        if (LOG.isDebugEnabled())
-            LOG.debug(String.format("sendData content=%s", content));
-
-        callback = Callback.from(callback, content::release);
-        writeHttpContent(request, response, callback, content);
     }
 
     public void writeHttpContent(Request request, Response response, Callback callback, HttpContent content)

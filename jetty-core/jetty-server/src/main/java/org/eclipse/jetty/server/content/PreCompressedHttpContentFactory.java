@@ -14,6 +14,8 @@
 package org.eclipse.jetty.server.content;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,12 +26,20 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jetty.http.CompressedContentFormat;
+import org.eclipse.jetty.http.EtagUtils;
+import org.eclipse.jetty.http.HttpField;
+import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.http.HttpFieldsWrapper;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.http.QuotedQualityCSV;
+import org.eclipse.jetty.server.AliasCheck;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.content.HttpContent.Factory;
+import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.resource.Resource;
 
 public class PreCompressedHttpContentFactory implements HttpContent.Factory
 {
@@ -104,10 +114,9 @@ public class PreCompressedHttpContentFactory implements HttpContent.Factory
         if (content == null)
             return null;
 
-        Map<CompressedContentFormat, HttpContent> compressedFormats = new HashMap<>();
+        Map<CompressedContentFormat, PreCompressedHttpContent> compressedFormats = new HashMap<>();
         for (CompressedContentFormat contentFormat : _preCompressedFormats)
         {
-            // TODO: Alias check for pre-compressed content?
             HttpContent preCompressedContent = _factory.getContent(pathInContext + contentFormat.getExtension());
             if (preCompressedContent != null)
                 compressedFormats.put(contentFormat, new PreCompressedHttpContent(content, preCompressedContent, contentFormat));
@@ -126,9 +135,9 @@ public class PreCompressedHttpContentFactory implements HttpContent.Factory
 
     private class CompressedFormatsHttpContent extends HttpContent.Wrapper
     {
-        private final Map<CompressedContentFormat, HttpContent> compressedFormats;
+        private final Map<CompressedContentFormat, PreCompressedHttpContent> compressedFormats;
 
-        public CompressedFormatsHttpContent(HttpContent content, Map<CompressedContentFormat, HttpContent> compressedFormats)
+        public CompressedFormatsHttpContent(HttpContent content, Map<CompressedContentFormat, PreCompressedHttpContent> compressedFormats)
         {
             super(content);
             this.compressedFormats = compressedFormats;
@@ -147,14 +156,20 @@ public class PreCompressedHttpContentFactory implements HttpContent.Factory
                 List<String> preferredEncodingOrder = getPreferredEncodingOrder(request);
                 if (!preferredEncodingOrder.isEmpty())
                 {
+                    AliasCheck aliasCheck = ContextHandler.getContextHandler(request);
+                    String pathInContext = Request.getPathInContext(request);
+
                     for (String encoding : preferredEncodingOrder)
                     {
                         CompressedContentFormat contentFormat = isEncodingAvailable(encoding, compressedContentFormats);
                         if (contentFormat == null)
                             continue;
 
-                        HttpContent preCompressedContent = new PreCompressedHttpContent(this, compressedFormats.get(contentFormat), contentFormat);
-                        preCompressedContent.process(request, response, callback);
+                        PreCompressedHttpContent preCompressedHttpContent = compressedFormats.get(contentFormat);
+                        if (aliasCheck != null && !aliasCheck.checkAlias(pathInContext, preCompressedHttpContent.getResource()))
+                            continue;
+
+                        preCompressedHttpContent.process(request, response, callback);
                         return;
                     }
                 }
@@ -212,6 +227,178 @@ public class PreCompressedHttpContentFactory implements HttpContent.Factory
             if ("*".equals(encoding))
                 return availableFormats.iterator().next();
             return null;
+        }
+    }
+
+    private static class PreCompressedHttpContent implements HttpContent
+    {
+        private final HttpContent _content;
+        private final HttpContent _precompressedContent;
+        private final CompressedContentFormat _format;
+        private final HttpField _etag;
+
+        public PreCompressedHttpContent(HttpContent content, HttpContent precompressedContent, CompressedContentFormat format)
+        {
+            if (content == null)
+                throw new IllegalArgumentException("Null HttpContent");
+            if (precompressedContent == null)
+                throw new IllegalArgumentException("Null Precompressed HttpContent");
+            if (format == null)
+                throw new IllegalArgumentException("Null Compressed Content Format");
+
+            _content = content;
+            _precompressedContent = precompressedContent;
+            _format = format;
+            _etag = new HttpField(HttpHeader.ETAG, EtagUtils.rewriteWithSuffix(_content.getETagValue(), _format.getEtagSuffix()));
+        }
+
+        @Override
+        public Resource getResource()
+        {
+            return _precompressedContent.getResource();
+        }
+
+        @Override
+        public HttpField getETag()
+        {
+            return _etag;
+        }
+
+        @Override
+        public String getETagValue()
+        {
+            return getETag().getValue();
+        }
+
+        @Override
+        public Instant getLastModifiedInstant()
+        {
+            return _precompressedContent.getLastModifiedInstant();
+        }
+
+        @Override
+        public HttpField getLastModified()
+        {
+            return _precompressedContent.getLastModified();
+        }
+
+        @Override
+        public String getLastModifiedValue()
+        {
+            return _precompressedContent.getLastModifiedValue();
+        }
+
+        @Override
+        public HttpField getContentType()
+        {
+            return _content.getContentType();
+        }
+
+        @Override
+        public String getContentTypeValue()
+        {
+            return _content.getContentTypeValue();
+        }
+
+        @Override
+        public HttpField getContentEncoding()
+        {
+            return _format.getContentEncoding();
+        }
+
+        @Override
+        public String getContentEncodingValue()
+        {
+            return _format.getContentEncoding().getValue();
+        }
+
+        @Override
+        public String getCharacterEncoding()
+        {
+            return _content.getCharacterEncoding();
+        }
+
+        @Override
+        public MimeTypes.Type getMimeType()
+        {
+            return _content.getMimeType();
+        }
+
+        @Override
+        public HttpField getContentLength()
+        {
+            return _precompressedContent.getContentLength();
+        }
+
+        @Override
+        public long getContentLengthValue()
+        {
+            return _precompressedContent.getContentLengthValue();
+        }
+
+        @Override
+        public String toString()
+        {
+            return String.format("%s@%x{e=%s,r=%s|%s,lm=%s|%s,ct=%s}",
+                this.getClass().getSimpleName(), hashCode(),
+                _format,
+                _content.getResource().lastModified(), _precompressedContent.getResource().lastModified(),
+                0L, 0L,
+                getContentType());
+        }
+
+        @Override
+        public ByteBuffer getByteBuffer()
+        {
+            return _precompressedContent.getByteBuffer();
+        }
+
+        @Override
+        public void release()
+        {
+            _precompressedContent.release();
+        }
+
+        @Override
+        public void process(Request request, Response response, Callback callback) throws Exception
+        {
+            // Intercept headers to set headers modified by the pre-compressed content.
+            response = new Response.Wrapper(request, response)
+            {
+                @Override
+                public HttpFields.Mutable getHeaders()
+                {
+                    return new HttpFieldsWrapper(super.getHeaders())
+                    {
+                        @Override
+                        public boolean onPutField(String name, String value)
+                        {
+                            if (HttpHeader.CONTENT_TYPE.is(name))
+                                value = getContentTypeValue();
+                            else if (HttpHeader.CONTENT_ENCODING.is(name))
+                                value = getContentEncodingValue();
+                            else if (HttpHeader.ETAG.is(name))
+                                value = getETagValue();
+                            return super.onPutField(name, value);
+                        }
+
+                        @Override
+                        public boolean onAddField(String name, String value)
+                        {
+                            if (HttpHeader.CONTENT_TYPE.is(name))
+                                value = getContentTypeValue();
+                            else if (HttpHeader.CONTENT_ENCODING.is(name))
+                                value = getContentEncodingValue();
+                            else if (HttpHeader.ETAG.is(name))
+                                value = getETagValue();
+                            return super.onAddField(name, value);
+                        }
+                    };
+                }
+            };
+
+
+            _precompressedContent.process(request, response, callback);
         }
     }
 }

@@ -179,6 +179,8 @@ public class WelcomeHttpContentFactory implements HttpContent.Factory
 
         if (!_resourceService.passConditionalHeaders(request, response, content, callback))
             sendDirectory(content, request, response, callback);
+
+        // TODO: What if passConditionalHeaders returns true;
     }
 
     private boolean welcome(Request request, Response response, Callback callback) throws IOException

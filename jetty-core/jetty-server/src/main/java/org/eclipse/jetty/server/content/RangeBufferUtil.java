@@ -38,7 +38,6 @@ class RangeBufferUtil
     public static void writeBuffer(HttpContent content, ResourceService resourceService, ByteBuffer byteBuffer, Request request, Response response, Callback callback)
     {
         long contentLength = content.getContentLengthValue();
-        callback = Callback.from(callback, content::release);
 
         // Is this a Range request?
         List<String> reqRanges = request.getHeaders().getValuesList(HttpHeader.RANGE.asString());
