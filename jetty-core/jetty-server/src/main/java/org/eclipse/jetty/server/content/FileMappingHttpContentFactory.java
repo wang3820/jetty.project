@@ -113,6 +113,7 @@ public class FileMappingHttpContentFactory implements HttpContent.Factory
                 return;
             }
 
+            // TODO: do this more efficiently with the buffer.
             if (request.getHeaders().contains(HttpHeader.RANGE))
                 super.process(request, response, callback);
 

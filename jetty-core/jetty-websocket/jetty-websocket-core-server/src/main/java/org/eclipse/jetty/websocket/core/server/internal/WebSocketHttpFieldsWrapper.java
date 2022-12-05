@@ -15,6 +15,7 @@ package org.eclipse.jetty.websocket.core.server.internal;
 
 import java.util.Collections;
 
+import org.eclipse.jetty.http.HttpFieldsWrapper;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.websocket.core.ExtensionConfig;
 import org.eclipse.jetty.websocket.core.server.ServerUpgradeResponse;

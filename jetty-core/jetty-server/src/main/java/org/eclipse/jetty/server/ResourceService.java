@@ -16,18 +16,14 @@ package org.eclipse.jetty.server;
 import java.io.IOException;
 import java.util.List;
 
-import org.eclipse.jetty.http.ByteRange;
 import org.eclipse.jetty.http.DateParser;
 import org.eclipse.jetty.http.EtagUtils;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpURI;
-import org.eclipse.jetty.http.MultiPart;
-import org.eclipse.jetty.http.MultiPartByteRanges;
 import org.eclipse.jetty.http.PreEncodedHttpField;
 import org.eclipse.jetty.http.QuotedCSV;
-import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.server.content.HttpContent;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.util.Callback;
@@ -328,59 +324,11 @@ public class ResourceService
 
     private void sendData(Request request, Response response, Callback callback, HttpContent content)
     {
-        // TODO: The HttpContent does processing of Ranges itself.
-        long contentLength = content.getContentLengthValue();
-        callback = Callback.from(callback, content::release);
-
         if (LOG.isDebugEnabled())
             LOG.debug(String.format("sendData content=%s", content));
 
-        // Is this a Range request?
-        List<String> reqRanges = request.getHeaders().getValuesList(HttpHeader.RANGE.asString());
-        if (reqRanges.isEmpty())
-        {
-            // If there are no ranges, send the entire content.
-            if (contentLength >= 0)
-                putHeaders(response, content, USE_KNOWN_CONTENT_LENGTH);
-            else
-                putHeaders(response, content, NO_CONTENT_LENGTH);
-            writeHttpContent(request, response, callback, content);
-            return;
-        }
-
-        // Parse the satisfiable ranges.
-        List<ByteRange> ranges = ByteRange.parse(reqRanges, contentLength);
-
-        // If there are no satisfiable ranges, send a 416 response.
-        if (ranges.isEmpty())
-        {
-            putHeaders(response, content, NO_CONTENT_LENGTH);
-            response.getHeaders().put(HttpHeader.CONTENT_RANGE, ByteRange.toNonSatisfiableHeaderValue(contentLength));
-            Response.writeError(request, response, callback, HttpStatus.RANGE_NOT_SATISFIABLE_416);
-            return;
-        }
-
-        // If there is only a single valid range, send that range with a 206 response.
-        if (ranges.size() == 1)
-        {
-            ByteRange range = ranges.get(0);
-            putHeaders(response, content, range.getLength());
-            response.setStatus(HttpStatus.PARTIAL_CONTENT_206);
-            response.getHeaders().put(HttpHeader.CONTENT_RANGE, range.toHeaderValue(contentLength));
-            Content.copy(new MultiPartByteRanges.PathContentSource(content.getResource().getPath(), range), response, callback);
-            return;
-        }
-
-        // There are multiple non-overlapping ranges, send a multipart/byteranges 206 response.
-        putHeaders(response, content, NO_CONTENT_LENGTH);
-        response.setStatus(HttpStatus.PARTIAL_CONTENT_206);
-        String contentType = "multipart/byteranges; boundary=";
-        String boundary = MultiPart.generateBoundary(null, 24);
-        response.getHeaders().put(HttpHeader.CONTENT_TYPE, contentType + boundary);
-        MultiPartByteRanges.ContentSource byteRanges = new MultiPartByteRanges.ContentSource(boundary);
-        ranges.forEach(range -> byteRanges.addPart(new MultiPartByteRanges.Part(content.getContentTypeValue(), content.getResource().getPath(), range, contentLength)));
-        byteRanges.close();
-        Content.copy(byteRanges, response, callback);
+        callback = Callback.from(callback, content::release);
+        writeHttpContent(request, response, callback, content);
     }
 
     public void writeHttpContent(Request request, Response response, Callback callback, HttpContent content)

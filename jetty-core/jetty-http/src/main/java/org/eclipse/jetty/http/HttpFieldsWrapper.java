@@ -11,16 +11,11 @@
 // ========================================================================
 //
 
-package org.eclipse.jetty.websocket.core.server.internal;
+package org.eclipse.jetty.http;
 
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.ListIterator;
-
-import org.eclipse.jetty.http.HttpField;
-import org.eclipse.jetty.http.HttpFields;
-import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.http.HttpHeaderValue;
 
 public class HttpFieldsWrapper implements HttpFields.Mutable
 {

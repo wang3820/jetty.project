@@ -19,6 +19,8 @@ import java.time.Instant;
 import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.EtagUtils;
 import org.eclipse.jetty.http.HttpField;
+import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.http.HttpFieldsWrapper;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.MimeTypes.Type;
 import org.eclipse.jetty.server.Request;
@@ -158,6 +160,42 @@ public class PreCompressedHttpContent implements HttpContent
     @Override
     public void process(Request request, Response response, Callback callback) throws Exception
     {
+        // Intercept headers to set headers modified by the pre-compressed content.
+        response = new Response.Wrapper(request, response)
+        {
+            @Override
+            public HttpFields.Mutable getHeaders()
+            {
+                return new HttpFieldsWrapper(super.getHeaders())
+                {
+                    @Override
+                    public boolean onPutField(String name, String value)
+                    {
+                        if (HttpHeader.CONTENT_TYPE.is(name))
+                            value = getContentTypeValue();
+                        else if (HttpHeader.CONTENT_ENCODING.is(name))
+                            value = getContentEncodingValue();
+                        else if (HttpHeader.ETAG.is(name))
+                            value = getETagValue();
+                        return super.onPutField(name, value);
+                    }
+
+                    @Override
+                    public boolean onAddField(String name, String value)
+                    {
+                        if (HttpHeader.CONTENT_TYPE.is(name))
+                            value = getContentTypeValue();
+                        else if (HttpHeader.CONTENT_ENCODING.is(name))
+                            value = getContentEncodingValue();
+                        else if (HttpHeader.ETAG.is(name))
+                            value = getETagValue();
+                        return super.onAddField(name, value);
+                    }
+                };
+            }
+        };
+
+
         _precompressedContent.process(request, response, callback);
     }
 }

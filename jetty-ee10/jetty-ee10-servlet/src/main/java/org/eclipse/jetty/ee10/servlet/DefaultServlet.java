@@ -49,6 +49,7 @@ import org.eclipse.jetty.http.BadMessageException;
 import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.http.HttpFieldsWrapper;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpHeaderValue;
 import org.eclipse.jetty.http.HttpStatus;
@@ -1083,6 +1084,38 @@ public class DefaultServlet extends HttpServlet
         {
             return -1;
         }
+
+        @Override
+        public void process(Request request, Response response, Callback callback) throws Exception
+        {
+            response = new Response.Wrapper(request, response)
+            {
+                @Override
+                public HttpFields.Mutable getHeaders()
+                {
+                    return new HttpFieldsWrapper(super.getHeaders())
+                    {
+                        @Override
+                        public boolean onPutField(String name, String value)
+                        {
+                            if (HttpHeader.CONTENT_LENGTH.is(name))
+                                value = Long.toString(getContentLengthValue());
+                            return super.onPutField(name, value);
+                        }
+
+                        @Override
+                        public boolean onAddField(String name, String value)
+                        {
+                            if (HttpHeader.CONTENT_LENGTH.is(name))
+                                value = Long.toString(getContentLengthValue());
+                            return super.onAddField(name, value);
+                        }
+                    };
+                }
+            };
+
+            super.process(request, response, callback);
+        }
     }
 
     private static class ForcedCharacterEncodingHttpContent extends HttpContent.Wrapper
@@ -1117,6 +1150,42 @@ public class DefaultServlet extends HttpServlet
         public String getCharacterEncoding()
         {
             return this.characterEncoding;
+        }
+
+        @Override
+        public void process(Request request, Response response, Callback callback) throws Exception
+        {
+            response = new Response.Wrapper(request, response)
+            {
+                @Override
+                public HttpFields.Mutable getHeaders()
+                {
+                    return new HttpFieldsWrapper(super.getHeaders())
+                    {
+                        @Override
+                        public boolean onPutField(String name, String value)
+                        {
+                            if (HttpHeader.CONTENT_ENCODING.is(name))
+                                value = getCharacterEncoding();
+                            else if (HttpHeader.CONTENT_TYPE.is(name))
+                                value = getContentTypeValue();
+                            return super.onPutField(name, value);
+                        }
+
+                        @Override
+                        public boolean onAddField(String name, String value)
+                        {
+                            if (HttpHeader.CONTENT_ENCODING.is(name))
+                                value = getCharacterEncoding();
+                            else if (HttpHeader.CONTENT_TYPE.is(name))
+                                value = getContentTypeValue();
+                            return super.onAddField(name, value);
+                        }
+                    };
+                }
+            };
+
+            super.process(request, response, callback);
         }
     }
 }

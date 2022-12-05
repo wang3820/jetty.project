@@ -14,7 +14,6 @@
 package org.eclipse.jetty.server.content;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -155,34 +154,13 @@ public class PreCompressedHttpContentFactory implements HttpContent.Factory
                         if (contentFormat == null)
                             continue;
 
-
                         HttpContent preCompressedContent = new PreCompressedHttpContent(this, compressedFormats.get(contentFormat), contentFormat);
-
-                        // Intercept response.write() to add headers modified by the pre-compressed content.
-                        response = new Response.Wrapper(request, response)
-                        {
-                            @Override
-                            public void write(boolean last, ByteBuffer byteBuffer, Callback callback)
-                            {
-                                if (!isCommitted())
-                                {
-                                    getHeaders().put(preCompressedContent.getContentType());
-                                    getHeaders().put(preCompressedContent.getContentEncoding());
-                                    getHeaders().put(preCompressedContent.getETag());
-                                }
-
-                                super.write(last, byteBuffer, callback);
-                            }
-                        };
-
                         preCompressedContent.process(request, response, callback);
                         return;
                     }
                 }
             }
 
-            // Otherwise serve the original content.
-            response.getHeaders().put(getContentEncoding());
             super.process(request, response, callback);
         }
 
