@@ -356,9 +356,9 @@ public class ResourceHandler extends Handler.Wrapper
         return _validationPeriod;
     }
 
-    public void setValidationPeriod(long _validationPeriod)
+    public void setValidationPeriod(long validationPeriod)
     {
-        this._validationPeriod = _validationPeriod;
+        _validationPeriod = validationPeriod;
     }
 
     public ByteBufferPool getByteBufferPool()

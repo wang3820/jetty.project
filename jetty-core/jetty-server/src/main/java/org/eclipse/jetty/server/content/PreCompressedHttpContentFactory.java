@@ -74,7 +74,6 @@ public class PreCompressedHttpContentFactory implements HttpContent.Factory
         return _preCompressedFormats;
     }
 
-
     /**
      * @param precompressedFormats The list of precompresed formats to serve in encoded format if matching resource found.
      * For example serve gzip encoded file if ".gz" suffixed resource is found.
