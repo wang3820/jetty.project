@@ -7,7 +7,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>jetty-nested</artifactId>
+  <artifactId>jetty-delegate</artifactId>
   <name>Jetty :: Nested</name>
 
   <properties>
