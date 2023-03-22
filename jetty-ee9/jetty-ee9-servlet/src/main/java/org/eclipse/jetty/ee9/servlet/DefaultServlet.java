@@ -1,6 +1,6 @@
 //
 // ========================================================================
-// Copyright (c) 1995-2022 Mort Bay Consulting Pty Ltd and others.
+// Copyright (c) 1995 Mort Bay Consulting Pty Ltd and others.
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -30,18 +30,18 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.ee9.nested.ContextHandler;
 import org.eclipse.jetty.ee9.nested.ResourceService;
 import org.eclipse.jetty.ee9.nested.ResourceService.WelcomeFactory;
-import org.eclipse.jetty.http.CachingHttpContentFactory;
 import org.eclipse.jetty.http.CompressedContentFormat;
-import org.eclipse.jetty.http.FileMappingHttpContentFactory;
-import org.eclipse.jetty.http.HttpContent;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.MimeTypes;
-import org.eclipse.jetty.http.PreCompressedHttpContentFactory;
 import org.eclipse.jetty.http.PreEncodedHttpField;
-import org.eclipse.jetty.http.ResourceHttpContentFactory;
-import org.eclipse.jetty.http.ValidatingCachingHttpContentFactory;
+import org.eclipse.jetty.http.content.CachingHttpContentFactory;
+import org.eclipse.jetty.http.content.FileMappingHttpContentFactory;
+import org.eclipse.jetty.http.content.HttpContent;
+import org.eclipse.jetty.http.content.PreCompressedHttpContentFactory;
+import org.eclipse.jetty.http.content.ResourceHttpContentFactory;
+import org.eclipse.jetty.http.content.ValidatingCachingHttpContentFactory;
+import org.eclipse.jetty.http.content.VirtualHttpContentFactory;
 import org.eclipse.jetty.io.ByteBufferPool;
-import org.eclipse.jetty.io.NoopByteBufferPool;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.IO;
 import org.eclipse.jetty.util.URIUtil;
@@ -250,9 +250,10 @@ public class DefaultServlet extends HttpServlet implements ResourceFactory, Welc
         if (contentFactory == null)
         {
             contentFactory = new ResourceHttpContentFactory(this, _mimeTypes);
-            contentFactory = new PreCompressedHttpContentFactory(contentFactory, _resourceService.getPrecompressedFormats());
             if (_useFileMappedBuffer)
                 contentFactory = new FileMappingHttpContentFactory(contentFactory);
+            contentFactory = new VirtualHttpContentFactory(contentFactory, _styleSheet, "text/css");
+            contentFactory = new PreCompressedHttpContentFactory(contentFactory, _resourceService.getPrecompressedFormats());
 
             int maxCacheSize = getInitInt("maxCacheSize", -2);
             int maxCachedFileSize = getInitInt("maxCachedFileSize", -2);
@@ -260,9 +261,9 @@ public class DefaultServlet extends HttpServlet implements ResourceFactory, Welc
             long cacheValidationTime = getInitParameter("cacheValidationTime") != null ? Long.parseLong(getInitParameter("cacheValidationTime")) : -2;
             if (maxCachedFiles != -2 || maxCacheSize != -2 || maxCachedFileSize != -2 || cacheValidationTime != -2)
             {
-                ByteBufferPool byteBufferPool = getByteBufferPool(_contextHandler);
+                ByteBufferPool bufferPool = getByteBufferPool(_contextHandler);
                 _cachingContentFactory = new ValidatingCachingHttpContentFactory(contentFactory,
-                    (cacheValidationTime > -2) ? cacheValidationTime : Duration.ofSeconds(1).toMillis(), byteBufferPool);
+                    (cacheValidationTime > -2) ? cacheValidationTime : Duration.ofSeconds(1).toMillis(), bufferPool);
                 contentFactory = _cachingContentFactory;
                 if (maxCacheSize >= 0)
                     _cachingContentFactory.setMaxCacheSize(maxCacheSize);
@@ -303,12 +304,11 @@ public class DefaultServlet extends HttpServlet implements ResourceFactory, Welc
     private static ByteBufferPool getByteBufferPool(ContextHandler contextHandler)
     {
         if (contextHandler == null)
-            return new NoopByteBufferPool();
+            return new ByteBufferPool.NonPooling();
         Server server = contextHandler.getServer();
         if (server == null)
-            return new NoopByteBufferPool();
-        ByteBufferPool byteBufferPool = server.getBean(ByteBufferPool.class);
-        return (byteBufferPool == null) ? new NoopByteBufferPool() : byteBufferPool;
+            return new ByteBufferPool.NonPooling();
+        return server.getByteBufferPool();
     }
 
     private String getInitParameter(String name, String... deprecated)
@@ -449,8 +449,7 @@ public class DefaultServlet extends HttpServlet implements ResourceFactory, Welc
      */
     protected Resource resolve(String subUriPath)
     {
-        if (!_contextHandler.isCanonicalEncodingURIs())
-            subUriPath = URIUtil.encodePath(subUriPath);
+        subUriPath = URIUtil.encodePath(subUriPath);
 
         Resource r = null;
         if (_relativeBaseResource != null)

@@ -1,6 +1,6 @@
 //
 // ========================================================================
-// Copyright (c) 1995-2022 Mort Bay Consulting Pty Ltd and others.
+// Copyright (c) 1995 Mort Bay Consulting Pty Ltd and others.
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -25,17 +25,17 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.ee9.nested.ContextHandler.APIContext;
 import org.eclipse.jetty.ee9.nested.ResourceService.WelcomeFactory;
 import org.eclipse.jetty.http.CompressedContentFormat;
-import org.eclipse.jetty.http.FileMappingHttpContentFactory;
-import org.eclipse.jetty.http.HttpContent;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.MimeTypes;
-import org.eclipse.jetty.http.PreCompressedHttpContentFactory;
 import org.eclipse.jetty.http.PreEncodedHttpField;
-import org.eclipse.jetty.http.ResourceHttpContentFactory;
-import org.eclipse.jetty.http.ValidatingCachingHttpContentFactory;
+import org.eclipse.jetty.http.content.FileMappingHttpContentFactory;
+import org.eclipse.jetty.http.content.HttpContent;
+import org.eclipse.jetty.http.content.PreCompressedHttpContentFactory;
+import org.eclipse.jetty.http.content.ResourceHttpContentFactory;
+import org.eclipse.jetty.http.content.ValidatingCachingHttpContentFactory;
+import org.eclipse.jetty.http.content.VirtualHttpContentFactory;
 import org.eclipse.jetty.io.ByteBufferPool;
-import org.eclipse.jetty.io.NoopByteBufferPool;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.URIUtil;
 import org.eclipse.jetty.util.resource.Resource;
@@ -54,7 +54,7 @@ public class ResourceHandler extends HandlerWrapper implements ResourceFactory, 
 {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceHandler.class);
 
-    private ByteBufferPool _byteBufferPool;
+    private ByteBufferPool _bufferPool;
     Resource _baseResource;
     ContextHandler _context;
     Resource _defaultStyleSheet;
@@ -103,9 +103,9 @@ public class ResourceHandler extends HandlerWrapper implements ResourceFactory, 
         APIContext scontext = ContextHandler.getCurrentContext();
         _context = (scontext == null ? null : scontext.getContextHandler());
         if (_mimeTypes == null)
-            _mimeTypes = _context == null ? new MimeTypes() : _context.getMimeTypes();
+            _mimeTypes = _context == null ? MimeTypes.DEFAULTS : _context.getMimeTypes();
 
-        _byteBufferPool = getByteBufferPool(_context);
+        _bufferPool = getByteBufferPool(_context);
         if (_resourceService.getHttpContentFactory() == null)
             _resourceService.setHttpContentFactory(newHttpContentFactory());
         _resourceService.setWelcomeFactory(this);
@@ -116,12 +116,11 @@ public class ResourceHandler extends HandlerWrapper implements ResourceFactory, 
     private static ByteBufferPool getByteBufferPool(ContextHandler contextHandler)
     {
         if (contextHandler == null)
-            return new NoopByteBufferPool();
+            return new ByteBufferPool.NonPooling();
         Server server = contextHandler.getServer();
         if (server == null)
-            return new NoopByteBufferPool();
-        ByteBufferPool byteBufferPool = server.getBean(ByteBufferPool.class);
-        return (byteBufferPool == null) ? new NoopByteBufferPool() : byteBufferPool;
+            return new ByteBufferPool.NonPooling();
+        return server.getByteBufferPool();
     }
 
     public HttpContent.Factory getHttpContentFactory()
@@ -132,9 +131,10 @@ public class ResourceHandler extends HandlerWrapper implements ResourceFactory, 
     protected HttpContent.Factory newHttpContentFactory()
     {
         HttpContent.Factory contentFactory = new ResourceHttpContentFactory(this, _mimeTypes);
-        contentFactory = new PreCompressedHttpContentFactory(contentFactory, _resourceService.getPrecompressedFormats());
         contentFactory = new FileMappingHttpContentFactory(contentFactory);
-        contentFactory = new ValidatingCachingHttpContentFactory(contentFactory, Duration.ofSeconds(1).toMillis(), _byteBufferPool);
+        contentFactory = new VirtualHttpContentFactory(contentFactory, getStyleSheet(), "text/css");
+        contentFactory = new PreCompressedHttpContentFactory(contentFactory, _resourceService.getPrecompressedFormats());
+        contentFactory = new ValidatingCachingHttpContentFactory(contentFactory, Duration.ofSeconds(1).toMillis(), _bufferPool);
         return contentFactory;
     }
 
@@ -454,6 +454,7 @@ public class ResourceHandler extends HandlerWrapper implements ResourceFactory, 
      * @param baseResource The base resource as a string.
      * @deprecated use {@link #setBaseResource(Resource)}
      */
+    @Deprecated
     public void setBaseResourceAsString(String baseResource)
     {
         try

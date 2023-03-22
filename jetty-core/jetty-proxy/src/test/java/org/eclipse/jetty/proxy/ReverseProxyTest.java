@@ -1,6 +1,6 @@
 //
 // ========================================================================
-// Copyright (c) 1995-2022 Mort Bay Consulting Pty Ltd and others.
+// Copyright (c) 1995 Mort Bay Consulting Pty Ltd and others.
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -15,11 +15,11 @@ package org.eclipse.jetty.proxy;
 
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
-import org.eclipse.jetty.client.dynamic.HttpClientTransportDynamic;
-import org.eclipse.jetty.client.http.HttpClientConnectionFactory;
-import org.eclipse.jetty.client.util.StringRequestContent;
+import org.eclipse.jetty.client.StringRequestContent;
+import org.eclipse.jetty.client.transport.HttpClientConnectionFactory;
+import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.http2.client.HTTP2Client;
@@ -44,14 +44,15 @@ public class ReverseProxyTest extends AbstractProxyTest
     {
         String clientContent = "hello";
         String serverContent = "world";
-        startServer(new Handler.Processor()
+        startServer(new Handler.Abstract()
         {
             @Override
-            public void process(Request request, Response response, Callback callback) throws Exception
+            public boolean handle(Request request, Response response, Callback callback) throws Exception
             {
                 String requestContent = Content.Source.asString(request);
                 assertEquals(clientContent, requestContent);
                 Content.Sink.write(response, true, serverContent, callback);
+                return true;
             }
         });
 
@@ -70,7 +71,7 @@ public class ReverseProxyTest extends AbstractProxyTest
             }
 
             @Override
-            protected org.eclipse.jetty.client.api.Request newProxyToServerRequest(Request clientToProxyRequest, HttpURI newHttpURI)
+            protected org.eclipse.jetty.client.Request newProxyToServerRequest(Request clientToProxyRequest, HttpURI newHttpURI)
             {
                 // Use the client to proxy protocol also from the proxy to server.
                 return super.newProxyToServerRequest(clientToProxyRequest, newHttpURI)
@@ -93,14 +94,15 @@ public class ReverseProxyTest extends AbstractProxyTest
     public void testEmptyHeaderValue(HttpVersion httpVersion) throws Exception
     {
         String emptyHeaderName = "X-Empty";
-        startServer(new Handler.Processor()
+        startServer(new Handler.Abstract()
         {
             @Override
-            public void process(Request request, Response response, Callback callback)
+            public boolean handle(Request request, Response response, Callback callback)
             {
                 assertEquals("", request.getHeaders().get(emptyHeaderName));
                 response.getHeaders().put(emptyHeaderName, "");
                 callback.succeeded();
+                return true;
             }
         });
         startProxy(new ProxyHandler.Reverse(clientToProxyRequest ->
@@ -118,7 +120,7 @@ public class ReverseProxyTest extends AbstractProxyTest
             }
 
             @Override
-            protected org.eclipse.jetty.client.api.Request newProxyToServerRequest(Request clientToProxyRequest, HttpURI newHttpURI)
+            protected org.eclipse.jetty.client.Request newProxyToServerRequest(Request clientToProxyRequest, HttpURI newHttpURI)
             {
                 // Use the client to proxy protocol also from the proxy to server.
                 return super.newProxyToServerRequest(clientToProxyRequest, newHttpURI)

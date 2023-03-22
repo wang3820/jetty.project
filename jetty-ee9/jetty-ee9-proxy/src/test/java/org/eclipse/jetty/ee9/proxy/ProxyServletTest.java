@@ -1,6 +1,6 @@
 //
 // ========================================================================
-// Copyright (c) 1995-2022 Mort Bay Consulting Pty Ltd and others.
+// Copyright (c) 1995 Mort Bay Consulting Pty Ltd and others.
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,7 +13,6 @@
 
 package org.eclipse.jetty.ee9.proxy;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -21,15 +20,12 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.net.ConnectException;
-import java.net.HttpCookie;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -61,22 +57,23 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.client.AsyncRequestContent;
+import org.eclipse.jetty.client.BufferingResponseListener;
+import org.eclipse.jetty.client.BytesRequestContent;
 import org.eclipse.jetty.client.ConnectionPool;
+import org.eclipse.jetty.client.ContentResponse;
+import org.eclipse.jetty.client.Destination;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.HttpDestination;
 import org.eclipse.jetty.client.HttpProxy;
+import org.eclipse.jetty.client.InputStreamResponseListener;
 import org.eclipse.jetty.client.ProxyConfiguration.Proxy;
-import org.eclipse.jetty.client.api.ContentResponse;
-import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.client.api.Response;
-import org.eclipse.jetty.client.api.Result;
-import org.eclipse.jetty.client.util.AsyncRequestContent;
-import org.eclipse.jetty.client.util.BufferingResponseListener;
-import org.eclipse.jetty.client.util.BytesRequestContent;
-import org.eclipse.jetty.client.util.InputStreamResponseListener;
+import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.client.Response;
+import org.eclipse.jetty.client.Result;
 import org.eclipse.jetty.ee9.servlet.FilterHolder;
 import org.eclipse.jetty.ee9.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee9.servlet.ServletHolder;
+import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpHeaderValue;
 import org.eclipse.jetty.http.HttpMethod;
@@ -1195,7 +1192,7 @@ public class ProxyServletTest
             .send();
         assertEquals(200, response1.getStatus());
         assertTrue(response1.getHeaders().contains(PROXIED_HEADER));
-        List<HttpCookie> cookies = client.getCookieStore().getCookies();
+        List<HttpCookie> cookies = client.getHttpCookieStore().all();
         assertEquals(1, cookies.size());
         assertEquals(name, cookies.get(0).getName());
         assertEquals(value1, cookies.get(0).getValue());
@@ -1210,7 +1207,7 @@ public class ProxyServletTest
                 .send();
             assertEquals(200, response2.getStatus());
             assertTrue(response2.getHeaders().contains(PROXIED_HEADER));
-            cookies = client2.getCookieStore().getCookies();
+            cookies = client2.getHttpCookieStore().all();
             assertEquals(1, cookies.size());
             assertEquals(name, cookies.get(0).getName());
             assertEquals(value2, cookies.get(0).getValue());
@@ -1294,7 +1291,7 @@ public class ProxyServletTest
         // Make sure the proxy does not receive chunk2.
         assertEquals(-1, input.read());
 
-        HttpDestination destination = (HttpDestination)client.resolveDestination(request);
+        Destination destination = client.resolveDestination(request);
         ConnectionPool connectionPool = destination.getConnectionPool();
         assertTrue(connectionPool.isEmpty());
     }
@@ -1361,13 +1358,13 @@ public class ProxyServletTest
 
         chunk1Latch.countDown();
 
-        assertThrows(EOFException.class, () ->
+        assertThrows(IOException.class, () ->
         {
             // Make sure the proxy does not receive chunk2.
             input.read();
         });
 
-        HttpDestination destination = (HttpDestination)client.resolveDestination(request);
+        Destination destination = client.resolveDestination(request);
         ConnectionPool connectionPool = destination.getConnectionPool();
         assertTrue(connectionPool.isEmpty());
     }

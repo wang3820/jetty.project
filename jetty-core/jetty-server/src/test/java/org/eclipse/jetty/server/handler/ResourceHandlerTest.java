@@ -1,6 +1,6 @@
 //
 // ========================================================================
-// Copyright (c) 1995-2022 Mort Bay Consulting Pty Ltd and others.
+// Copyright (c) 1995 Mort Bay Consulting Pty Ltd and others.
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -34,20 +34,21 @@ import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.eclipse.jetty.http.CachingHttpContentFactory;
 import org.eclipse.jetty.http.CompressedContentFormat;
 import org.eclipse.jetty.http.DateGenerator;
 import org.eclipse.jetty.http.EtagUtils;
-import org.eclipse.jetty.http.FileMappingHttpContentFactory;
-import org.eclipse.jetty.http.HttpContent;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpTester;
-import org.eclipse.jetty.http.PreCompressedHttpContentFactory;
-import org.eclipse.jetty.http.ResourceHttpContentFactory;
 import org.eclipse.jetty.http.UriCompliance;
-import org.eclipse.jetty.http.ValidatingCachingHttpContentFactory;
+import org.eclipse.jetty.http.content.CachingHttpContentFactory;
+import org.eclipse.jetty.http.content.FileMappingHttpContentFactory;
+import org.eclipse.jetty.http.content.HttpContent;
+import org.eclipse.jetty.http.content.PreCompressedHttpContentFactory;
+import org.eclipse.jetty.http.content.ResourceHttpContentFactory;
+import org.eclipse.jetty.http.content.ValidatingCachingHttpContentFactory;
+import org.eclipse.jetty.http.content.VirtualHttpContentFactory;
 import org.eclipse.jetty.logging.StacklessLogging;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -354,7 +355,7 @@ public class ResourceHandlerTest
                 (response) ->
                 {
                     String body = response.getContent();
-                    assertThat(body, containsString("/../../"));
+                    assertThat(body, containsString("Not Found"));
                     assertThat(body, not(containsString("Directory: ")));
                 }
             );
@@ -665,11 +666,11 @@ public class ResourceHandlerTest
             @Override
             protected HttpContent.Factory newHttpContentFactory()
             {
-                // For testing the cache should be configured to validate the entry on every request.
                 HttpContent.Factory contentFactory = new ResourceHttpContentFactory(ResourceFactory.of(getBaseResource()), getMimeTypes());
-                contentFactory = new PreCompressedHttpContentFactory(contentFactory, getPrecompressedFormats());
                 contentFactory = new FileMappingHttpContentFactory(contentFactory);
-                contentFactory = new ValidatingCachingHttpContentFactory(contentFactory, 0, _local.getByteBufferPool());
+                contentFactory = new VirtualHttpContentFactory(contentFactory, getStyleSheet(), "text/css");
+                contentFactory = new PreCompressedHttpContentFactory(contentFactory, getPrecompressedFormats());
+                contentFactory = new ValidatingCachingHttpContentFactory(contentFactory, 0, getByteBufferPool());
                 return contentFactory;
             }
         };
