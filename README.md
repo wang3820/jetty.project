@@ -89,3 +89,11 @@ Professional Services
 ---------------------
 
 Expert advice and production support are available through [Webtide.com](https://webtide.com).
+
+## Contributors
+
+Thank you for considering contributing to the Jetty Project! The contribution guide can be found in the [CONTRIBUTING](https://github.com/eclipse/jetty.project/blob/jetty-10.0.x/CONTRIBUTING.md).
+
+<a href="https://github.com/eclipse/jetty.project/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=eclipse/jetty.project" />
+</a>
