@@ -55,8 +55,8 @@
             compilation time. -->
             <_nouses>true</_nouses>
             <Import-Package>
-              javax.servlet;version="[$(version;==;${jetty.servlet.api.version}),$(version;+;${jetty.servlet.api.version}))",
-              javax.servlet.resources;version="[$(version;==;${jetty.servlet.api.version}),$(version;+;${jetty.servlet.api.version}))",
+              javax.servlet;version="[$(version;==;${servletApi.osgiVersion}),$(version;+;${servletApi.osgiVersion}))",
+              javax.servlet.resources;version="[$(version;==;${servletApi.osgiVersion}),$(version;+;${servletApi.osgiVersion}))",
               org.osgi.framework,
               org.osgi.service.cm;version="${osgi-service-cm-version}",
               org.osgi.service.packageadmin,
