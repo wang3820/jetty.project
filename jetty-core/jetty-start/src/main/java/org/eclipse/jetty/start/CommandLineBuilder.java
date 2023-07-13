@@ -49,7 +49,9 @@ public class CommandLineBuilder
     @Deprecated
     public static String quote(String arg)
     {
-        return "'" + arg + "'";
+        StringBuilder buf = new StringBuilder();
+        shellQuoteIfNeeded(buf, arg);
+        return buf.toString();
     }
 
     private List<String> args;
@@ -81,13 +83,13 @@ public class CommandLineBuilder
     }
 
     /**
-     * Similar to {@link #addArg(String)} but concats both name + value with an "=" sign, quoting were needed, and excluding the "=" portion if the value is
+     * Similar to {@link #addArg(String)} but concats both name + value with an "=" sign, excluding the "=" portion if the value is
      * undefined or empty.
      *
      * <pre>
      *   addEqualsArg("-Dname", "value") = "-Dname=value"
-     *   addEqualsArg("-Djetty.home", "/opt/company inc/jetty (7)/") = "-Djetty.home=/opt/company\ inc/jetty\ (7)/"
-     *   addEqualsArg("-Djenkins.workspace", "/opt/workspaces/jetty jdk7/") = "-Djenkins.workspace=/opt/workspaces/jetty\ jdk7/"
+     *   addEqualsArg("-Djetty.home", "/opt/company inc/jetty (7)/") = '-Djetty.home=/opt/company inc/jetty (7)/'
+     *   addEqualsArg("-Djenkins.workspace", "/opt/workspaces/jetty jdk7/") = '-Djenkins.workspace=/opt/workspaces/jetty jdk7/'
      *   addEqualsArg("-Dstress", null) = "-Dstress"
      *   addEqualsArg("-Dstress", "") = "-Dstress"
      * </pre>
@@ -150,9 +152,9 @@ public class CommandLineBuilder
     }
 
     /**
-     * A version of {@link #toString()} where every arg is evaluated for potential {@code '} (single-quote tick) wrapping.
+     * A version of {@link #toString()} where every arg is evaluated for potential {@code '} (strong quote) wrapping.
      *
-     * @return the toString but each arg that has spaces is surrounded by {@code '} (single-quote tick)
+     * @return the toString but each arg that needs quoting is surrounded by {@code '} (strong quotes)
      */
     public String toQuotedString()
     {
@@ -162,15 +164,73 @@ public class CommandLineBuilder
         {
             if (buf.length() > 0)
                 buf.append(' ');
-            boolean needsQuotes = (arg.contains(" "));
-            if (needsQuotes)
-                buf.append("'");
-            buf.append(arg);
-            if (needsQuotes)
-                buf.append("'");
+            shellQuoteIfNeeded(buf, arg);
         }
 
         return buf.toString();
+    }
+
+    private static boolean needsQuoting(String input)
+    {
+        for (int i = 0; i < input.length(); i++)
+        {
+            char c = input.charAt(i);
+
+            // If character not part of allowed characters, then it needs quoting
+            if (!((c >= 'a' && c <= 'z') || // allow lowercase letters
+                (c >= 'A' && c <= 'Z') || // allow uppercase letters
+                (c >= '0' && c <= '9') || // allow digits
+                c == '-' || // allow dash (common filename usage)
+                c == '.' || // allow dot (common filename usage)
+                c == '/' || // allow slash (common filename usage)
+                c == '=' || // allow equals (common assignment usage)
+                c == '_' || // allow underscore (common filename usage)
+                c == ':' // allow colon (common URI/URL usage), and prevents filesystem quoting on Windows
+                ))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Quote a string suitable for use with a command line shell using strong quotes {@code '}.
+     * <p>This method applies strong quoting {@code '} as described for the unix {@code sh} commands:
+     * Enclosing characters within strong quotes preserves the literal meaning of all characters.
+     *
+     * @param buf the StringBuilder to append to
+     * @param input The string to quote if needed
+     */
+    public static void shellQuoteIfNeeded(StringBuilder buf, String input)
+    {
+        if (input == null)
+            return;
+
+        if (input.length() == 0)
+        {
+            buf.append("''");
+            return;
+        }
+
+        if (!needsQuoting(input))
+        {
+            buf.append(input);
+            return;
+        }
+
+        buf.append('\'');
+
+        for (int i = 0; i < input.length(); i++)
+        {
+            char c = input.charAt(i);
+            if (c == '\'')
+                buf.append("'\\''");
+            else
+                buf.append(c);
+        }
+
+        buf.append('\'');
     }
 
     public void debug()

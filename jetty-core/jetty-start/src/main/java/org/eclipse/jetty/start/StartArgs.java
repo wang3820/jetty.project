@@ -637,7 +637,7 @@ public class StartArgs
                 // pass properties as args
                 for (Prop p : properties)
                 {
-                    cmd.addRawArg(CommandLineBuilder.quote(p.key) + "=" + CommandLineBuilder.quote(properties.expand(p.value)));
+                    cmd.addRawArg(p.key + "=" + properties.expand(p.value));
                 }
             }
             else if (properties.size() > 0)
