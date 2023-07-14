@@ -65,13 +65,10 @@ public class CommandLineBuilder
         return "'" + arg + "'";
     }
 
-    private final StringBuilder commandLine = new StringBuilder();
     private final List<String> args = new ArrayList<>();
-    private final String separator;
 
     public CommandLineBuilder()
     {
-        this(false);
     }
 
     @Deprecated
@@ -81,77 +78,17 @@ public class CommandLineBuilder
         args.add(bin);
     }
 
-    public CommandLineBuilder(boolean multiline)
+    public String toDryRunString(DryRunFormatter.Function argFunction)
     {
-        separator = multiline ? (" \\" + System.lineSeparator() + "  ") : " ";
-    }
-
-    /**
-     * This method applies single quotes suitable for a POSIX compliant shell if
-     * necessary.
-     *
-     * @param input The string to quote if needed
-     * @return The quoted string or the original string if quotes are not necessary
-     */
-    public static String shellQuoteIfNeeded(String input)
-    {
-        // Single quotes are used because double quotes are processed differently by some shells and the xarg
-        // command used by jetty.sh
-
-        if (input == null)
-            return null;
-        if (input.length() == 0)
-            return "''";
-
-        int i = 0;
-        boolean needsQuoting = false;
-        while (!needsQuoting && i < input.length())
+        StringBuilder buf = new StringBuilder();
+        for (String arg : args)
         {
-            char c = input.charAt(i++);
-
-            // needs quoting unless a limited set of known good characters
-            needsQuoting = !(
-                (c >= 'A' && c <= 'Z') ||
-                (c >= 'a' && c <= 'z') ||
-                (c >= '0' && c <= '9') ||
-                c == '/' ||
-                c == ':' ||
-                c == '.' ||
-                c == ',' ||
-                c == '+' ||
-                c == '-' ||
-                c == '_'
-                );
+            if (buf.length() != 0)
+                buf.append(argFunction.separator());
+            buf.append(argFunction.applyArg(arg));
         }
 
-        if (!needsQuoting)
-            return input;
-
-        StringBuilder builder = new StringBuilder(input.length() * 2);
-        builder.append("'");
-        builder.append(input, 0, --i);
-
-        while (i < input.length())
-        {
-            char c = input.charAt(i++);
-            if (c == '\'')
-            {
-                // There is no escape for a literal single quote, so we must leave the quotes
-                // and then escape the single quote. We test for the start/end of the string, so
-                // we can be less ugly in those cases.
-                if (i == 1)
-                    builder.insert(0, "\\").append("'");
-                else if (i == input.length())
-                    builder.append("'\\");
-                else
-                    builder.append("'\\''");
-            }
-            else
-                builder.append(c);
-        }
-        builder.append("'");
-
-        return builder.toString();
+        return buf.toString();
     }
 
     /**
@@ -163,10 +100,7 @@ public class CommandLineBuilder
     {
         if (arg != null)
         {
-            if (commandLine.length() > 0)
-                commandLine.append(separator);
             args.add(arg);
-            commandLine.append(shellQuoteIfNeeded(arg));
         }
     }
 
@@ -189,18 +123,13 @@ public class CommandLineBuilder
     {
         Objects.requireNonNull(name);
 
-        if (commandLine.length() > 0)
-            commandLine.append(separator);
-
         if ((value != null) && (value.length() > 0))
         {
             args.add(name + "=" + value);
-            commandLine.append(shellQuoteIfNeeded(name)).append('=').append(shellQuoteIfNeeded(value));
         }
         else
         {
             args.add(name);
-            commandLine.append(shellQuoteIfNeeded(name));
         }
     }
 
@@ -233,23 +162,17 @@ public class CommandLineBuilder
     {
         Objects.requireNonNull(option);
 
-        if (commandLine.length() > 0)
-            commandLine.append(separator);
-
         if (name == null || name.length() == 0)
         {
-            commandLine.append(option);
             args.add(option);
         }
         else if ((value != null) && (value.length() > 0))
         {
             args.add(option + name + "=" + value);
-            commandLine.append(option).append(shellQuoteIfNeeded(name)).append('=').append(shellQuoteIfNeeded(value));
         }
         else
         {
             args.add(option + name);
-            commandLine.append(option).append(shellQuoteIfNeeded(name));
         }
     }
 
@@ -285,10 +208,11 @@ public class CommandLineBuilder
      * A version of {@link #toString()} where every arg is evaluated for potential {@code '} (single-quote tick) wrapping.
      *
      * @return the toString but each arg that has spaces is surrounded by {@code '} (single-quote tick)
+     * @deprecated
      */
     public String toCommandLine()
     {
-        return commandLine.toString();
+        return toDryRunString(DryRunFormatter.SH_ONELINE);
     }
 
     public void debug()

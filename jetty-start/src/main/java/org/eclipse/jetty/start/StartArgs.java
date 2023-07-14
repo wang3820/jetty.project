@@ -208,8 +208,8 @@ public class StartArgs
     private boolean listConfig = false;
     private boolean version = false;
     private boolean dryRun = false;
-    private boolean multiLine = false;
     private final Set<String> dryRunParts = new HashSet<>();
+    private DryRunFormatter.Function dryRunFormatter = DryRunFormatter.SH_ONELINE;
     private boolean jpms = false;
     private boolean createStartD = false;
     private boolean createStartIni = false;
@@ -707,7 +707,7 @@ public class StartArgs
         if (parts.isEmpty())
             parts = ALL_PARTS;
 
-        CommandLineBuilder cmd = new CommandLineBuilder(multiLine);
+        CommandLineBuilder cmd = new CommandLineBuilder();
 
         // Special Stop/Shutdown properties
         ensureSystemPropertySet("STOP.PORT");
@@ -989,6 +989,11 @@ public class StartArgs
         return dryRun;
     }
 
+    public DryRunFormatter.Function getDryRunFormatter()
+    {
+        return dryRunFormatter;
+    }
+
     public Set<String> getDryRunParts()
     {
         return dryRunParts;
@@ -1224,15 +1229,9 @@ public class StartArgs
 
         if (arg.startsWith("--dry-run="))
         {
-            int colon = arg.indexOf('=');
-            for (String part : arg.substring(colon + 1).split(","))
+            String parts = Props.getValue(arg);
+            for (String part : parts.split(","))
             {
-                if ("multiline".equalsIgnoreCase(part))
-                {
-                    multiLine = true;
-                    continue;
-                }
-
                 if (!ALL_PARTS.contains(part))
                     throw new UsageException(UsageException.ERR_BAD_ARG, "Unrecognized --dry-run=\"%s\" in %s", part, source);
 
@@ -1241,6 +1240,12 @@ public class StartArgs
             dryRun = true;
             run = false;
             return;
+        }
+
+        if (arg.startsWith("--dry-run-format="))
+        {
+            String format = Props.getValue(arg);
+            this.dryRunFormatter = DryRunFormatter.fromArg(format);
         }
 
         // Enable forked execution of Jetty server
