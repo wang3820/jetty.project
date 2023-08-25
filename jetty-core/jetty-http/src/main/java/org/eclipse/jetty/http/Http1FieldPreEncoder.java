@@ -13,7 +13,9 @@
 
 package org.eclipse.jetty.http;
 
-import java.util.Arrays;
+import java.nio.ByteBuffer;
+
+import org.eclipse.jetty.util.BufferUtil;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
@@ -23,27 +25,32 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 public abstract class Http1FieldPreEncoder implements HttpFieldPreEncoder
 {
     @Override
-    public byte[] getEncodedField(HttpHeader header, String headerString, String value)
+    public ByteBuffer getEncodedField(HttpHeader header, String headerString, String value)
     {
         if (header != null)
         {
             int cbl = header.getBytesColonSpace().length;
-            byte[] bytes = Arrays.copyOf(header.getBytesColonSpace(), cbl + value.length() + 2);
-            System.arraycopy(value.getBytes(ISO_8859_1), 0, bytes, cbl, value.length());
-            bytes[bytes.length - 2] = (byte)'\r';
-            bytes[bytes.length - 1] = (byte)'\n';
-            return bytes;
+            ByteBuffer buffer = ByteBuffer.allocateDirect(cbl + value.length() + 2);
+            BufferUtil.clearToFill(buffer);
+            buffer.put(header.getBytesColonSpace());
+            buffer.put(value.getBytes(ISO_8859_1));
+            buffer.put((byte)'\r');
+            buffer.put((byte)'\n');
+            BufferUtil.flipToFlush(buffer, 0);
+            return buffer;
         }
 
         byte[] n = headerString.getBytes(ISO_8859_1);
         byte[] v = value.getBytes(ISO_8859_1);
-        byte[] bytes = Arrays.copyOf(n, n.length + 2 + v.length + 2);
-        bytes[n.length] = (byte)':';
-        bytes[n.length + 1] = (byte)' ';
-        System.arraycopy(v, 0, bytes, n.length + 2, v.length);
-        bytes[bytes.length - 2] = (byte)'\r';
-        bytes[bytes.length - 1] = (byte)'\n';
-
-        return bytes;
+        ByteBuffer buffer = ByteBuffer.allocateDirect(n.length + 2 + v.length + 2);
+        BufferUtil.clearToFill(buffer);
+        buffer.put(n);
+        buffer.put((byte)':');
+        buffer.put((byte)' ');
+        buffer.put(v);
+        buffer.put((byte)'\r');
+        buffer.put((byte)'\n');
+        BufferUtil.flipToFlush(buffer, 0);
+        return buffer;
     }
 }

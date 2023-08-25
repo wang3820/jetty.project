@@ -35,11 +35,11 @@ public class HpackFieldPreEncoder implements HttpFieldPreEncoder
     }
 
     @Override
-    public byte[] getEncodedField(HttpHeader header, String name, String value)
+    public ByteBuffer getEncodedField(HttpHeader header, String name, String value)
     {
         boolean notIndexed = HpackEncoder.DO_NOT_INDEX.contains(header);
 
-        ByteBuffer buffer = BufferUtil.allocate(name.length() + value.length() + 10);
+        ByteBuffer buffer = BufferUtil.allocateDirect(name.length() + value.length() + 10);
         BufferUtil.clearToFill(buffer);
         boolean huffman;
         int bits;
@@ -80,6 +80,6 @@ public class HpackFieldPreEncoder implements HttpFieldPreEncoder
         HpackEncoder.encodeValue(buffer, huffman, value);
 
         BufferUtil.flipToFlush(buffer, 0);
-        return BufferUtil.toArray(buffer);
+        return buffer;
     }
 }

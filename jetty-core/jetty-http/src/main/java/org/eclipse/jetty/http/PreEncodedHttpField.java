@@ -63,7 +63,7 @@ public class PreEncodedHttpField extends HttpField
             __encoders.put(HttpVersion.HTTP_1_1, new Http11FieldPreEncoder());
     }
 
-    private final EnumMap<HttpVersion, byte[]> _encodedFields = new EnumMap<>(HttpVersion.class);
+    private final EnumMap<HttpVersion, ByteBuffer> _encodedFields = new EnumMap<>(HttpVersion.class);
     private final long _longValue;
 
     private PreEncodedHttpField(HttpHeader header, String name, String value, long longValue)
@@ -107,12 +107,13 @@ public class PreEncodedHttpField extends HttpField
 
     public void putTo(ByteBuffer bufferInFillMode, HttpVersion version)
     {
-        bufferInFillMode.put(_encodedFields.get(version));
+        ByteBuffer src = _encodedFields.get(version);
+        bufferInFillMode.put(bufferInFillMode.position(), src, 0, src.remaining());
     }
 
     public int getEncodedLength(HttpVersion version)
     {
-        return _encodedFields.get(version).length;
+        return _encodedFields.get(version).remaining();
     }
 
     @Override

@@ -23,6 +23,7 @@ import org.eclipse.jetty.http3.qpack.internal.EncodableEntry;
 import org.eclipse.jetty.http3.qpack.internal.QpackContext;
 import org.eclipse.jetty.http3.qpack.internal.table.Entry;
 import org.eclipse.jetty.http3.qpack.internal.table.StaticTable;
+import org.eclipse.jetty.util.BufferUtil;
 
 public class QpackFieldPreEncoder implements HttpFieldPreEncoder
 {
@@ -33,7 +34,7 @@ public class QpackFieldPreEncoder implements HttpFieldPreEncoder
     }
 
     @Override
-    public byte[] getEncodedField(HttpHeader header, String name, String value)
+    public ByteBuffer getEncodedField(HttpHeader header, String name, String value)
     {
         StaticTable staticTable = QpackContext.getStaticTable();
         HttpField httpField = new HttpField(header, name, value);
@@ -68,8 +69,10 @@ public class QpackFieldPreEncoder implements HttpFieldPreEncoder
 
         // Use a base of zero as we only reference the static table.
         int base = 0;
-        byte[] preEncodedBytes = new byte[encodableEntry.getRequiredSize(base)];
-        encodableEntry.encode(ByteBuffer.wrap(preEncodedBytes), base);
-        return preEncodedBytes;
+        ByteBuffer buffer = ByteBuffer.allocateDirect(encodableEntry.getRequiredSize(base));
+        BufferUtil.clearToFill(buffer);
+        encodableEntry.encode(buffer, base);
+        BufferUtil.flipToFlush(buffer, 0);
+        return buffer;
     }
 }

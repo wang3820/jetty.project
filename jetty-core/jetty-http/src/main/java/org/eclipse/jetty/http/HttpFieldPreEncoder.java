@@ -13,6 +13,8 @@
 
 package org.eclipse.jetty.http;
 
+import java.nio.ByteBuffer;
+
 /**
  * Interface to pre-encode HttpFields.  Used by {@link PreEncodedHttpField}
  */
@@ -28,5 +30,5 @@ public interface HttpFieldPreEncoder
      */
     HttpVersion getHttpVersion();
 
-    byte[] getEncodedField(HttpHeader header, String headerString, String value);
+    ByteBuffer getEncodedField(HttpHeader header, String headerString, String value);
 }
