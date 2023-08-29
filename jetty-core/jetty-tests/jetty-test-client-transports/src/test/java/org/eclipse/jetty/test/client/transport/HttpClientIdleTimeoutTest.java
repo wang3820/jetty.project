@@ -15,6 +15,7 @@ package org.eclipse.jetty.test.client.transport;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.http.HttpStatus;
@@ -22,7 +23,6 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -35,74 +35,100 @@ public class HttpClientIdleTimeoutTest extends AbstractTest
 
     @ParameterizedTest
     @MethodSource("transports")
-    @Tag("DisableLeakTracking:server:FCGI")
     public void testClientIdleTimeout(Transport transport) throws Exception
     {
+        AtomicReference<Callback> callbackRef = new AtomicReference<>();
         start(transport, new Handler.Abstract()
         {
             @Override
             public boolean handle(Request request, Response response, Callback callback) throws Exception
             {
-                // Do not succeed the callback if it's a timeout request.
+                // Do not succeed the callback if it's a timeout request,
+                // but store it aside for releasing the buffer later on.
                 if (!Request.getPathInContext(request).equals("/timeout"))
                     callback.succeeded();
+                else
+                    callbackRef.set(callback);
                 return true;
             }
         });
         client.setIdleTimeout(idleTimeout);
 
-        CountDownLatch latch = new CountDownLatch(1);
-        client.newRequest(newURI(transport))
-            .path("/timeout")
-            .send(result ->
-            {
-                if (result.isFailed())
-                    latch.countDown();
-            });
+        try
+        {
+            CountDownLatch latch = new CountDownLatch(1);
+            client.newRequest(newURI(transport))
+                .path("/timeout")
+                .send(result ->
+                {
+                    if (result.isFailed())
+                        latch.countDown();
+                });
 
-        assertTrue(latch.await(2 * idleTimeout, TimeUnit.MILLISECONDS));
+            assertTrue(latch.await(2 * idleTimeout, TimeUnit.MILLISECONDS));
 
-        // Verify that after the timeout we can make another request.
-        ContentResponse response = client.newRequest(newURI(transport))
-            .timeout(5, TimeUnit.SECONDS)
-            .send();
-        assertEquals(HttpStatus.OK_200, response.getStatus());
+            // Verify that after the timeout we can make another request.
+            ContentResponse response = client.newRequest(newURI(transport))
+                .timeout(5, TimeUnit.SECONDS)
+                .send();
+            assertEquals(HttpStatus.OK_200, response.getStatus());
+        }
+        finally
+        {
+            // Release the buffer.
+            Callback callback = callbackRef.get();
+            if (callback != null)
+                callback.succeeded();
+        }
     }
 
     @ParameterizedTest
     @MethodSource("transports")
-    @Tag("DisableLeakTracking:server:FCGI")
     public void testRequestIdleTimeout(Transport transport) throws Exception
     {
+        AtomicReference<Callback> callbackRef = new AtomicReference<>();
         start(transport, new Handler.Abstract()
         {
             @Override
             public boolean handle(Request request, Response response, Callback callback) throws Exception
             {
-                // Do not succeed the callback if it's a timeout request.
+                // Do not succeed the callback if it's a timeout request,
+                // but store it aside for releasing the buffer later on.
                 if (!Request.getPathInContext(request).equals("/timeout"))
                     callback.succeeded();
+                else
+                    callbackRef.set(callback);
                 return true;
             }
         });
 
-        CountDownLatch latch = new CountDownLatch(1);
-        client.newRequest(newURI(transport))
-            .path("/timeout")
-            .idleTimeout(idleTimeout, TimeUnit.MILLISECONDS)
-            .send(result ->
-            {
-                if (result.isFailed())
-                    latch.countDown();
-            });
+        try
+        {
+            CountDownLatch latch = new CountDownLatch(1);
+            client.newRequest(newURI(transport))
+                .path("/timeout")
+                .idleTimeout(idleTimeout, TimeUnit.MILLISECONDS)
+                .send(result ->
+                {
+                    if (result.isFailed())
+                        latch.countDown();
+                });
 
-        assertTrue(latch.await(2 * idleTimeout, TimeUnit.MILLISECONDS));
+            assertTrue(latch.await(2 * idleTimeout, TimeUnit.MILLISECONDS));
 
-        // Verify that after the timeout we can make another request.
-        ContentResponse response = client.newRequest(newURI(transport))
-            .timeout(5, TimeUnit.SECONDS)
-            .send();
-        assertEquals(HttpStatus.OK_200, response.getStatus());
+            // Verify that after the timeout we can make another request.
+            ContentResponse response = client.newRequest(newURI(transport))
+                .timeout(5, TimeUnit.SECONDS)
+                .send();
+            assertEquals(HttpStatus.OK_200, response.getStatus());
+        }
+        finally
+        {
+            // Release the buffer.
+            Callback callback = callbackRef.get();
+            if (callback != null)
+                callback.succeeded();
+        }
     }
 
     @ParameterizedTest
