@@ -97,7 +97,7 @@
                 org.eclipse.jetty.orbit,org.eclipse.jetty.http2,org.eclipse.jetty.http3,org.eclipse.jetty.quic,org.eclipse.jetty.websocket,org.eclipse.jetty.ee8.websocket,org.eclipse.jetty.ee9.websocket,org.eclipse.jetty.ee10.websocket,org.eclipse.jetty.fcgi,org.eclipse.jetty.toolchain,org.apache.taglibs
               </excludeGroupIds>
               <excludeArtifactIds>
-                jetty-ee8-apache-jsp,jetty-ee9-apache-jsp,jetty-ee10-apache-jsp,jetty-ee8-glassfish-jstl,jetty-ee9-glassfish-jstl,jetty-ee10-glassfish-jstl,jetty-start,jetty-slf4j-impl,javadoc
+                jetty-home,jetty-ee8-apache-jsp,jetty-ee9-apache-jsp,jetty-ee10-apache-jsp,jetty-ee8-glassfish-jstl,jetty-ee9-glassfish-jstl,jetty-ee10-glassfish-jstl,jetty-start,jetty-slf4j-impl,javadoc
               </excludeArtifactIds>
               <includeTypes>jar</includeTypes>
               <outputDirectory>${assembly-directory}/lib</outputDirectory>
@@ -402,23 +402,6 @@
   </build>
 
   <dependencies>
-    <!--    <dependency>-->
-    <!--      <groupId>jakarta.mail</groupId>-->
-    <!--      <artifactId>jakarta.mail-api</artifactId>-->
-    <!--    </dependency>-->
-    <!--    <dependency>-->
-    <!--      <groupId>jakarta.annotation</groupId>-->
-    <!--      <artifactId>jakarta.annotation-api</artifactId>-->
-    <!--    </dependency>-->
-    <!--    <dependency>-->
-    <!--      <groupId>jakarta.authentication</groupId>-->
-    <!--      <artifactId>jakarta.authentication-api</artifactId>-->
-    <!--    </dependency>-->
-    <!--    <dependency>-->
-    <!--      <groupId>jakarta.transaction</groupId>-->
-    <!--      <artifactId>jakarta.transaction-api</artifactId>-->
-    <!--    </dependency>-->
-
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm</artifactId>

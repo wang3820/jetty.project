@@ -167,7 +167,7 @@
     <maven.clean.plugin.version>3.3.1</maven.clean.plugin.version>
     <maven.checkstyle.plugin.version>3.3.0</maven.checkstyle.plugin.version>
     <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
-    <maven.dependency.plugin.version>3.6.0</maven.dependency.plugin.version>
+    <maven.dependency.plugin.version>3.6.1-SNAPSHOT</maven.dependency.plugin.version>
     <maven.deploy.plugin.version>3.1.1</maven.deploy.plugin.version>
     <maven.enforcer.plugin.version>3.4.0</maven.enforcer.plugin.version>
     <maven.exec.plugin.version>3.1.0</maven.exec.plugin.version>
@@ -176,7 +176,7 @@
     <maven.invoker.plugin.version>3.6.0</maven.invoker.plugin.version>
     <groovy.version>4.0.6</groovy.version>
     <maven.jar.plugin.version>3.3.0</maven.jar.plugin.version>
-    <maven.javadoc.plugin.version>3.5.0</maven.javadoc.plugin.version>
+    <maven.javadoc.plugin.version>3.6.0</maven.javadoc.plugin.version>
     <maven.plugin-tools.version>3.9.0</maven.plugin-tools.version>
     <maven-plugin.plugin.version>3.9.0</maven-plugin.plugin.version>
     <maven.release.plugin.version>3.0.1</maven.release.plugin.version>
@@ -532,6 +532,44 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>javadoc-aggregation</id>
+            <goals>
+              <goal>aggregate-no-fork</goal>
+            </goals>
+            <phase>compile</phase>
+            <configuration>
+              <verbose>false</verbose>
+              <legacyMode>false</legacyMode>
+              <source>17</source>
+              <release>17</release>
+              <show>public</show>
+              <skippedModules>
+                jetty-home,jetty-ee10-home,jetty-ee9-home,jetty-ee8-home,jetty-start
+                <!--,jetty-demo-handler,jetty-http-tools,jetty-keystore,jetty-osgi,jetty-gcloud-session-manager,jetty-infinispan-common,jetty-infinispan-embedded-query,jetty-infinispan-remote-query,jetty-ee10-demo-async-rest-jar,jetty-ee10-demo-async-rest-server,jetty-ee10-demo-jndi-webapp,jetty-ee10-demo-jetty-webapp,jetty-ee10-demo-simple-webapp,jetty-ee10-demo-jsp-webapp,jetty-ee10-demo-mock-resources,jetty-ee10-demo-spec-webapp,jetty-ee10-demo-container-initializer,jetty-ee10-demo-web-fragment,jetty-ee10-demo-embedded,jetty-ee10-jspc-maven-plugin,jetty-ee10-maven-plugin,jetty-ee10-osgi-boot,jetty-ee10-osgi-boot-jsp,jetty-ee10-runner,jetty-ee10-test-bad-websocket-webapp,jetty-ee10-test-http2-webapp,jetty-ee10-jmx-webapp,jetty-ee10-test-websocket-client-provided-webapp,jetty-ee10-test-websocket-client-webapp,jetty-ee10-test-websocket-webapp,jetty-ee10-test-cdi-common-webapp,jetty-ee10-test-felix-webapp,jetty-ee10-test-openid-webapp,jetty-ee10-test-simple-session-webapp,jetty-ee10-test-badinit-webapp,jetty-ee9-demo-async-rest-jar,jetty-ee9-demo-jndi-webapp,jetty-ee9-demo-jetty-webapp,jetty-ee9-demo-embedded,jetty-ee9-demo-simple-webapp,jetty-ee9-demo-jsp-webapp,jetty-ee9-demo-mock-resources,jetty-ee9-demo-spec-webapp,jetty-ee9-demo-container-initializer,jetty-ee9-demo-web-fragment,jetty-ee9-jspc-maven-plugin,jetty-ee9-maven-plugin,jetty-ee9-osgi-boot,jetty-ee9-osgi-boot-jsp,jetty-ee9-runner,jetty-ee9-test-bad-websocket-webapp,jetty-ee9-test-http2-webapp,jetty-ee9-jmx-webapp,jetty-ee9-test-websocket-client-provided-webapp,jetty-ee9-test-websocket-client-webapp,jetty-ee9-test-websocket-webapp,jetty-ee9-test-cdi-common-webapp,jetty-ee9-test-felix-webapp,jetty-ee9-test-openid-webapp,jetty-ee9-test-simple-session-webapp,jetty-ee9-test-webapp-rfc2616,jetty-ee9-test-badinit-webapp,jetty-ee8-maven-plugin,jetty-ee8-jspc-maven-plugin,jetty-ee8-demo-simple-webapp,jetty-ee8-demo-async-rest-jar,jetty-ee8-demo-mock-resources,jetty-ee8-demo-jndi-webapp,jetty-ee8-demo-jetty-webapp,jetty-ee8-demo-jsp-webapp,jetty-ee8-demo-spec-webapp,jetty-ee8-demo-container-initializer,jetty-ee8-demo-web-fragment,jetty-asciidoctor-extensions -->
+              </skippedModules>
+              <excludePackageNames>com.*,org.slf4j.*,org.mortbay.*,*.jmh.*,*.jmh</excludePackageNames>
+              <sourceFileIncludes>
+                <sourceFileInclude>org/eclipse/jetty/**/*.java</sourceFileInclude>
+              </sourceFileIncludes>
+              <sourceFileExcludes>
+                <sourceFileExclude>**/module-info.java</sourceFileExclude>
+                <sourceFileExclude>org/eclipse/jetty/ee10/demos/**/*.java</sourceFileExclude>
+                <sourceFileExclude>org/eclipse/jetty/ee10/tests/**/*.java</sourceFileExclude>
+                <sourceFileExclude>org/eclipse/jetty/ee9/demos/**/*.java</sourceFileExclude>
+                <sourceFileExclude>org/eclipse/jetty/ee9/tests/**/*.java</sourceFileExclude>
+                <sourceFileExclude>org/eclipse/jetty/ee8/demos/**/*.java</sourceFileExclude>
+                <sourceFileExclude>org/eclipse/jetty/ee8/tests/**/*.java</sourceFileExclude>
+                <sourceFileExclude>org/eclipse/jetty/tests/**/*.java</sourceFileExclude>
+              </sourceFileExcludes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -674,7 +712,10 @@
             <show>protected</show>
             <attach>true</attach>
             <isOffline>true</isOffline>
-            <excludePackageNames>com.*:org.slf4j*:org.mortbay*:*.jmh*:org.eclipse.jetty.embedded*:org.eclipse.jetty.example.asyncrest*:org.eclipse.jetty.test*</excludePackageNames>
+            <sourceFileIncludes>
+              <sourceFileInclude>org/eclipse/jetty/**/*.java</sourceFileInclude>
+            </sourceFileIncludes>
+            <!-- excludePackageNames>com.*:org.slf4j.*:org.mortbay.*:*.jmh.*:org.eclipse.jetty.embedded.*:org.eclipse.jetty.example.asyncrest.*:org.eclipse.jetty.test.*</excludePackageNames -->
           </configuration>
         </plugin>
         <plugin>
@@ -2097,11 +2138,6 @@
         <maven.repo.uri>https://repo.maven.apache.org/maven2/</maven.repo.uri>
         <home.start.timeout>120</home.start.timeout>
       </properties>
-      <modules>
-      <!-- FIXME: Do we want to keep this?
-        <module>javadoc</module>
-        -->
-      </modules>
       <build>
         <pluginManagement>
           <plugins>

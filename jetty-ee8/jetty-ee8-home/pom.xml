@@ -47,6 +47,7 @@
             </goals>
             <configuration>
               <includeGroupIds>org.eclipse.jetty.websocket</includeGroupIds>
+              <excludeGroupIds>org.eclipse.jetty</excludeGroupIds>
               <excludeArtifactIds>jetty-schemas,jetty-servlet-api,jetty-test-helper,jetty-websocket-core*</excludeArtifactIds>
               <includeTypes>jar</includeTypes>
               <outputDirectory>${assembly-directory}/lib</outputDirectory>
@@ -60,6 +61,7 @@
             </goals>
             <configuration>
               <includeGroupIds>org.eclipse.jetty.toolchain,org.eclipse.jetty.ee8.websocket</includeGroupIds>
+              <excludeGroupIds>org.eclipse.jetty.ee8,org.eclipse.jetty.websocket</excludeGroupIds>
               <excludeArtifactIds>jetty-schemas,jetty-servlet-api,jetty-test-helper,jetty-websocket-core*</excludeArtifactIds>
               <includeTypes>jar</includeTypes>
               <outputDirectory>${assembly-directory}/lib/ee8-websocket</outputDirectory>
@@ -283,7 +285,7 @@
             <configuration>
               <includeGroupIds>org.eclipse.jetty.ee8</includeGroupIds>
               <excludeArtifactIds>jetty-websocket-core-client,jetty-websocket-core-common,jetty-websocket-core-server</excludeArtifactIds>
-              <excludeGroupIds>org.eclipse.jetty.ee8.demos,org.eclipse.jetty.ee8.websocket</excludeGroupIds>
+              <excludeGroupIds>org.eclipse.jetty.ee8.demos,org.eclipse.jetty.ee8.websocket,org.eclipse.jetty</excludeGroupIds>
               <includeTypes>jar</includeTypes>
               <outputDirectory>${assembly-directory}/lib</outputDirectory>
             </configuration>
