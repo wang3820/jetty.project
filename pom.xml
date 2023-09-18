@@ -544,7 +544,7 @@
             <phase>compile</phase>
             <configuration>
               <verbose>false</verbose>
-              <legacyMode>false</legacyMode>
+              <legacyMode>true</legacyMode>
               <source>17</source>
               <release>17</release>
               <show>public</show>
