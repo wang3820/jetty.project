@@ -1,19 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.eclipse.jetty.ee10.osgi</groupId>
     <artifactId>jetty-ee10-osgi</artifactId>
     <version>12.0.2-SNAPSHOT</version>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
   <artifactId>test-jetty-ee10-osgi-webapp-resources</artifactId>
-  <name>EE10 :: OSGi :: WebApp With Resources</name>
   <packaging>war</packaging>
+  <name>EE10 :: OSGi :: WebApp With Resources</name>
   <properties>
     <bundle-symbolic-name>${project.groupId}.webapp.resources</bundle-symbolic-name>
     <maven.deploy.skip>true</maven.deploy.skip>
     <maven.javadoc.skip>true</maven.javadoc.skip>
   </properties>
+  <dependencies>
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
   <build>
     <plugins>
       <plugin>
@@ -22,15 +29,15 @@
         <executions>
           <execution>
             <id>copy-resources</id>
-            <phase>validate</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
+            <phase>validate</phase>
             <configuration>
               <outputDirectory>${basedir}/target/classes</outputDirectory>
               <resources>
                 <resource>
-                    <directory>src/main/resources</directory>
+                  <directory>src/main/resources</directory>
                 </resource>
               </resources>
             </configuration>
@@ -63,11 +70,4 @@
       </plugin>
     </plugins>
   </build>
-  <dependencies>
-    <dependency>
-      <groupId>jakarta.servlet</groupId>
-      <artifactId>jakarta.servlet-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
-  </dependencies>
 </project>

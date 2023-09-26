@@ -1,26 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.eclipse.jetty.tests</groupId>
     <artifactId>tests</artifactId>
     <version>12.0.2-SNAPSHOT</version>
   </parent>
-
-  <modelVersion>4.0.0</modelVersion>
   <artifactId>test-distribution</artifactId>
-  <name>Tests :: Distribution</name>
   <packaging>pom</packaging>
+  <name>Tests :: Distribution</name>
+
+  <modules>
+    <module>test-distribution-common</module>
+    <module>test-ee10-distribution</module>
+    <module>test-ee9-distribution</module>
+  </modules>
 
   <properties>
     <distribution.debug.port>-1</distribution.debug.port>
     <environmentsToTest>ee8,ee9,ee10</environmentsToTest>
     <sessionLogLevel>INFO</sessionLogLevel>
   </properties>
-
-  <modules>
-    <module>test-distribution-common</module>
-    <module>test-ee9-distribution</module>
-    <module>test-ee10-distribution</module>
-  </modules>
 
   <dependencyManagement>
     <dependencies>
@@ -39,7 +40,7 @@
         <artifactId>jetty-slf4j-impl</artifactId>
         <scope>test</scope>
       </dependency>
-        <dependency>
+      <dependency>
         <groupId>org.eclipse.jetty.tests</groupId>
         <artifactId>test-distribution-common</artifactId>
         <version>${project.version}</version>

@@ -1,18 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.eclipse.jetty.ee10.osgi</groupId>
     <artifactId>jetty-ee10-osgi</artifactId>
     <version>12.0.2-SNAPSHOT</version>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
   <artifactId>test-jetty-ee10-osgi</artifactId>
   <name>EE10 :: OSGi :: Test</name>
   <description>Jetty OSGi Integration test</description>
   <properties>
-    <bundle-symbolic-name>${project.groupId}.boot.test.osgi</bundle-symbolic-name>
     <assembly-directory>target/distribution</assembly-directory>
-    <maven.javadoc.skip>true</maven.javadoc.skip>
+    <bundle-symbolic-name>${project.groupId}.boot.test.osgi</bundle-symbolic-name>
     <maven.deploy.skip>true</maven.deploy.skip>
+    <maven.javadoc.skip>true</maven.javadoc.skip>
   </properties>
   <dependencies>
     <!-- Pax Exam Dependencies -->
@@ -146,10 +147,10 @@
     </dependency>
     <!-- Jetty OSGi Deps -->
     <dependency>
-       <groupId>org.slf4j</groupId>
-       <artifactId>slf4j-api</artifactId>
-       <scope>test</scope>
-     </dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!--
     <dependency>
        <groupId>org.slf4j</groupId>
@@ -193,8 +194,8 @@
       </exclusions>
     </dependency>
     <dependency>
-     <groupId>jakarta.servlet</groupId>
-     <artifactId>jakarta.servlet-api</artifactId>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
     </dependency>
     <dependency>
       <groupId>jakarta.inject</groupId>
@@ -258,7 +259,7 @@
     <dependency>
       <groupId>org.glassfish.web</groupId>
       <artifactId>jakarta.servlet.jsp.jstl</artifactId>
-   </dependency>
+    </dependency>
     <!-- Jetty Deps -->
     <dependency>
       <groupId>org.eclipse.jetty.ee10</groupId>
@@ -568,7 +569,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore />
+                    <ignore></ignore>
                   </action>
                 </pluginExecution>
               </pluginExecutions>
@@ -580,20 +581,20 @@
     <plugins>
       <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy</id>
-            <phase>process-test-resources</phase>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-          </execution>
-        </executions>
         <configuration>
           <includeArtifactIds>test-jetty-ee10-osgi-webapp-resources</includeArtifactIds>
           <outputDirectory>target</outputDirectory>
           <stripVersion>true</stripVersion>
         </configuration>
+        <executions>
+          <execution>
+            <id>copy</id>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <phase>process-test-resources</phase>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.servicemix.tooling</groupId>

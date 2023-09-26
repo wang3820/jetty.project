@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.eclipse.jetty.ee10</groupId>
     <artifactId>jetty-ee10</artifactId>
     <version>12.0.2-SNAPSHOT</version>
   </parent>
-
-  <modelVersion>4.0.0</modelVersion>
   <artifactId>jetty-ee10-servlets</artifactId>
   <name>EE10 :: Utility Servlets and Filters</name>
   <description>Utility Servlets from Jetty</description>
@@ -15,25 +15,6 @@
     <bundle-symbolic-name>${project.groupId}.servlets</bundle-symbolic-name>
     <spotbugs.onlyAnalyze>org.eclipse.jetty.ee10.servlets.*</spotbugs.onlyAnalyze>
   </properties>
-
-  <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <argLine>
-            @{argLine} ${jetty.surefire.argLine}
-            --add-modules jakarta.servlet 
-            --add-modules org.eclipse.jetty.util
-            --add-modules org.eclipse.jetty.io
-            --add-modules org.eclipse.jetty.http
-            --add-modules org.eclipse.jetty.server
-            --add-modules org.eclipse.jetty.jmx
-          </argLine>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 
   <dependencies>
     <dependency>
@@ -84,5 +65,22 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>@{argLine} ${jetty.surefire.argLine}
+            --add-modules jakarta.servlet 
+            --add-modules org.eclipse.jetty.util
+            --add-modules org.eclipse.jetty.io
+            --add-modules org.eclipse.jetty.http
+            --add-modules org.eclipse.jetty.server
+            --add-modules org.eclipse.jetty.jmx</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 
 </project>

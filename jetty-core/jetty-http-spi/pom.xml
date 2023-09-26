@@ -1,16 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.eclipse.jetty</groupId>
     <artifactId>jetty-core</artifactId>
     <version>12.0.2-SNAPSHOT</version>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
   <artifactId>jetty-http-spi</artifactId>
   <name>Core :: HTTP SPI</name>
   <properties>
     <bundle-symbolic-name>${project.groupId}.http.spi</bundle-symbolic-name>
-    <spotbugs.onlyAnalyze>org.eclipse.jetty.http.spi.*</spotbugs.onlyAnalyze>
     <jacoco.skip>true</jacoco.skip>
+    <spotbugs.onlyAnalyze>org.eclipse.jetty.http.spi.*</spotbugs.onlyAnalyze>
   </properties>
   <dependencies>
     <dependency>

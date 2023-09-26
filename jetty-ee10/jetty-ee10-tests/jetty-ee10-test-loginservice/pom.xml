@@ -9,8 +9,8 @@
   <artifactId>jetty-ee10-test-loginservice</artifactId>
   <name>EE10 :: Tests :: Login Service</name>
   <properties>
-    <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
     <bundle-symbolic-name>${project.groupId}.loginservice</bundle-symbolic-name>
+    <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
   </properties>
   <dependencies>
     <dependency>

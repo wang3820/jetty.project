@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <!--
@@ -8,16 +9,16 @@
   <groupId>org.eclipse.jetty</groupId>
   <artifactId>build-resources</artifactId>
   <version>12.0.2-SNAPSHOT</version>
-  <name>Build :: Resources</name>
   <packaging>jar</packaging>
+  <name>Build :: Resources</name>
 
   <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <maven.javadoc.skip>true</maven.javadoc.skip>
     <!-- versions for these plugins are not based on parent pom -->
     <maven.remote-resources.plugin.version>3.1.0</maven.remote-resources.plugin.version>
     <maven.surefire.plugin.version>3.1.2</maven.surefire.plugin.version>
-    <maven.deploy.skip>true</maven.deploy.skip>
-    <maven.javadoc.skip>true</maven.javadoc.skip>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <skipTests>true</skipTests>
   </properties>
 
@@ -27,12 +28,12 @@
         <directory>${project.basedir}/src/main/resources</directory>
       </resource>
       <resource>
+        <targetPath>META-INF</targetPath>
         <directory>${project.basedir}/../</directory>
         <includes>
           <include>LICENSE</include>
           <include>NOTICE.txt</include>
         </includes>
-        <targetPath>META-INF</targetPath>
       </resource>
     </resources>
     <plugins>
@@ -43,10 +44,10 @@
         <executions>
           <execution>
             <id>create-shared-resources</id>
-            <phase>process-resources</phase>
             <goals>
               <goal>bundle</goal>
             </goals>
+            <phase>process-resources</phase>
             <configuration>
               <resourcesDirectory>${project.build.outputDirectory}</resourcesDirectory>
               <includes>

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.eclipse.jetty.ee10</groupId>
     <artifactId>jetty-ee10-tests</artifactId>
     <version>12.0.2-SNAPSHOT</version>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
   <artifactId>jetty-ee10-test-quickstart</artifactId>
   <name>EE10 :: Tests :: Quick Start</name>
   <description>Jetty Quick Start Test</description>
@@ -114,10 +114,10 @@
         <executions>
           <execution>
             <id>copy</id>
-            <phase>process-test-classes</phase>
             <goals>
               <goal>copy</goal>
             </goals>
+            <phase>process-test-classes</phase>
             <configuration>
               <artifactItems>
                 <artifactItem>

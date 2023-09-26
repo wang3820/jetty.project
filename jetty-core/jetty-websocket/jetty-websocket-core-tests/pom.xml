@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.eclipse.jetty.websocket</groupId>
     <artifactId>jetty-websocket</artifactId>
     <version>12.0.2-SNAPSHOT</version>
   </parent>
-
-  <modelVersion>4.0.0</modelVersion>
   <artifactId>jetty-websocket-core-tests</artifactId>
   <name>Core :: Websocket :: Tests</name>
 
   <properties>
-    <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
     <bundle-symbolic-name>${project.groupId}.core.tests</bundle-symbolic-name>
-    <maven.javadoc.skip>true</maven.javadoc.skip>
+    <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
     <maven.deploy.skip>true</maven.deploy.skip>
+    <maven.javadoc.skip>true</maven.javadoc.skip>
   </properties>
 
   <dependencies>
@@ -77,7 +77,7 @@
           <configuration>
             <archive>
               <manifest>
-                <addDefaultEntries/>
+                <addDefaultEntries></addDefaultEntries>
               </manifest>
               <manifestEntries>
                 <Comment>Jetty Websocket Test Support Classes</Comment>

@@ -13,24 +13,6 @@
     <!-- from 10.xx it has changed to jboss/infinispan -->
     <infinispan.docker.image.name>infinispan/server</infinispan.docker.image.name>
   </properties>
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <includes>
-            <include>**/*.java</include>
-          </includes>
-          <argLine>--add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED</argLine>
-          <systemPropertyVariables>
-            <infinispan.docker.image.version>${infinispan.docker.image.version}</infinispan.docker.image.version>
-            <infinispan.docker.image.name>${infinispan.docker.image.name}</infinispan.docker.image.name>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
   <dependencies>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
@@ -71,8 +53,8 @@
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-jmx</artifactId>
-      <optional>true</optional>
       <scope>test</scope>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty.toolchain</groupId>
@@ -147,6 +129,24 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <includes>
+            <include>**/*.java</include>
+          </includes>
+          <argLine>--add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED</argLine>
+          <systemPropertyVariables>
+            <infinispan.docker.image.version>${infinispan.docker.image.version}</infinispan.docker.image.version>
+            <infinispan.docker.image.name>${infinispan.docker.image.name}</infinispan.docker.image.name>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
   <profiles>
     <profile>
       <id>jdk16</id>

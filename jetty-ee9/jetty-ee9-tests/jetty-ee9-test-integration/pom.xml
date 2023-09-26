@@ -1,66 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.eclipse.jetty.ee9</groupId>
     <artifactId>jetty-ee9-tests</artifactId>
     <version>12.0.2-SNAPSHOT</version>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
   <artifactId>jetty-ee9-test-integration</artifactId>
   <packaging>jar</packaging>
   <name>EE9 :: Tests :: Integration</name>
   <properties>
-    <test-wars-dir>${project.build.directory}/test-wars</test-wars-dir>
-    <test-libs-dir>${project.build.directory}/test-libs</test-libs-dir>
-    <test-home-dir>${project.build.directory}/test-dist</test-home-dir>
     <bundle-symbolic-name>${project.groupId}.integrations</bundle-symbolic-name>
+    <test-home-dir>${project.build.directory}/test-dist</test-home-dir>
+    <test-libs-dir>${project.build.directory}/test-libs</test-libs-dir>
+    <test-wars-dir>${project.build.directory}/test-wars</test-wars-dir>
   </properties>
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-wars-for-testing</id>
-            <phase>process-test-resources</phase>
-            <goals>
-              <goal>copy</goal>
-            </goals>
-            <configuration>
-              <artifactItems>
-                 <artifactItem>
-                     <groupId>org.eclipse.jetty.ee9</groupId>
-                     <artifactId>jetty-ee9-test-webapp-rfc2616</artifactId>
-                     <version>${project.version}</version>
-                     <type>war</type>
-                     <destFileName>ee9-test-rfc2616.war</destFileName>
-                 </artifactItem>
-                 <artifactItem>
-                     <groupId>org.eclipse.jetty.ee9.demos</groupId>
-                     <artifactId>jetty-ee9-demo-jetty-webapp</artifactId>
-                     <type>war</type>
-                     <destFileName>ee9-demo-jetty.war</destFileName>
-                 </artifactItem>
-              </artifactItems>
-              <stripVersion>true</stripVersion>
-              <outputDirectory>${project.build.directory}/webapps</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <!-- Disabled due to junit5 bug - https://github.com/junit-team/junit5/issues/801 -->
-          <!--<forkMode>always</forkMode>-->
-          <useSystemClassLoader>true</useSystemClassLoader>
-          <useManifestOnlyJar>false</useManifestOnlyJar>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
   <dependencies>
     <dependency>
       <groupId>org.eclipse.jetty.ee9</groupId>
@@ -149,4 +103,50 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-wars-for-testing</id>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <phase>process-test-resources</phase>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.eclipse.jetty.ee9</groupId>
+                  <artifactId>jetty-ee9-test-webapp-rfc2616</artifactId>
+                  <version>${project.version}</version>
+                  <type>war</type>
+                  <destFileName>ee9-test-rfc2616.war</destFileName>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.eclipse.jetty.ee9.demos</groupId>
+                  <artifactId>jetty-ee9-demo-jetty-webapp</artifactId>
+                  <type>war</type>
+                  <destFileName>ee9-demo-jetty.war</destFileName>
+                </artifactItem>
+              </artifactItems>
+              <stripVersion>true</stripVersion>
+              <outputDirectory>${project.build.directory}/webapps</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- Disabled due to junit5 bug - https://github.com/junit-team/junit5/issues/801 -->
+          <!--<forkMode>always</forkMode>-->
+          <useSystemClassLoader>true</useSystemClassLoader>
+          <useManifestOnlyJar>false</useManifestOnlyJar>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
