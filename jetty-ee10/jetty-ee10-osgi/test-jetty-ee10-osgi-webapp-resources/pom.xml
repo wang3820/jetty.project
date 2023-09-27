@@ -24,6 +24,21 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <extensions>true</extensions>
+        <configuration>
+          <supportedProjectTypes>
+            <supportedProjectType>war</supportedProjectType>
+          </supportedProjectTypes>
+          <instructions>
+            <Export-Package>!com.acme*</Export-Package>
+            <Web-ContextPath>/test-webapp-resources</Web-ContextPath>
+            <Jetty-Environment>ee10</Jetty-Environment>
+          </instructions>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
@@ -43,21 +58,6 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.felix</groupId>
-        <artifactId>maven-bundle-plugin</artifactId>
-        <extensions>true</extensions>
-        <configuration>
-          <supportedProjectTypes>
-            <supportedProjectType>war</supportedProjectType>
-          </supportedProjectTypes>
-          <instructions>
-            <Export-Package>!com.acme*</Export-Package>
-            <Web-ContextPath>/test-webapp-resources</Web-ContextPath>
-            <Jetty-Environment>ee10</Jetty-Environment>
-          </instructions>
-        </configuration>
       </plugin>
       <!-- also make this webapp an osgi bundle -->
       <plugin>

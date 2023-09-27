@@ -16,12 +16,12 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.eclipse.jetty.http3</groupId>
-      <artifactId>jetty-http3-client</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.http3</groupId>
+      <artifactId>jetty-http3-client</artifactId>
     </dependency>
 
     <dependency>

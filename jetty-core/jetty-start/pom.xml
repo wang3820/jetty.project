@@ -40,18 +40,26 @@
     </resources>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>buildnumber-maven-plugin</artifactId>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
-            <id>create-buildnumber</id>
+            <id>unpack</id>
             <goals>
-              <goal>create</goal>
+              <goal>unpack</goal>
             </goals>
+            <phase>process-test-resources</phase>
             <configuration>
-              <doCheck>false</doCheck>
-              <doUpdate>false</doUpdate>
-              <revisionOnScmFailure>${nonCanonicalRevision}</revisionOnScmFailure>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.eclipse.jetty</groupId>
+                  <artifactId>jetty-util</artifactId>
+                  <type>jar</type>
+                  <overWrite>false</overWrite>
+                </artifactItem>
+              </artifactItems>
+              <outputDirectory>${project.build.directory}/jetty-util</outputDirectory>
+              <overWriteSnapshots>true</overWriteSnapshots>
             </configuration>
           </execution>
         </executions>
@@ -102,26 +110,18 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>buildnumber-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>unpack</id>
+            <id>create-buildnumber</id>
             <goals>
-              <goal>unpack</goal>
+              <goal>create</goal>
             </goals>
-            <phase>process-test-resources</phase>
             <configuration>
-              <artifactItems>
-                <artifactItem>
-                  <groupId>org.eclipse.jetty</groupId>
-                  <artifactId>jetty-util</artifactId>
-                  <type>jar</type>
-                  <overWrite>false</overWrite>
-                </artifactItem>
-              </artifactItems>
-              <outputDirectory>${project.build.directory}/jetty-util</outputDirectory>
-              <overWriteSnapshots>true</overWriteSnapshots>
+              <doCheck>false</doCheck>
+              <doUpdate>false</doUpdate>
+              <revisionOnScmFailure>${nonCanonicalRevision}</revisionOnScmFailure>
             </configuration>
           </execution>
         </executions>

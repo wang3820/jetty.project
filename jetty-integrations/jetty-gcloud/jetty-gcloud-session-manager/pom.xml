@@ -16,25 +16,17 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-session</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-datastore</artifactId>
       <version>${gcloud.version}</version>
       <exclusions>
         <exclusion>
           <groupId>jakarta.servlet</groupId>
-          <artifactId>servlet-api</artifactId>
+          <artifactId>jakarta.servlet-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>jakarta.servlet</groupId>
-          <artifactId>jakarta.servlet-api</artifactId>
+          <artifactId>servlet-api</artifactId>
         </exclusion>
         <exclusion>
           <groupId>javax.annotation</groupId>
@@ -46,6 +38,14 @@
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
       <version>3.22.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-session</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
   </dependencies>
 
@@ -60,27 +60,6 @@
             <Export-Package>org.eclipse.jetty.gcloud.session.*;version="${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}"</Export-Package>
           </instructions>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>build-deps-file</id>
-            <goals>
-              <goal>list</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <appendOutput>false</appendOutput>
-              <outputFile>${project.build.directory}/deps.txt</outputFile>
-              <sort>true</sort>
-              <excludeGroupIds>org.eclipse.jetty,jakarta.servlet</excludeGroupIds>
-              <prependGroupId>true</prependGroupId>
-              <includeScope>runtime</includeScope>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -112,6 +91,27 @@
                   <fileset file="${project.build.directory}/deps.txt"></fileset>
                 </concat>
               </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>build-deps-file</id>
+            <goals>
+              <goal>list</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <appendOutput>false</appendOutput>
+              <outputFile>${project.build.directory}/deps.txt</outputFile>
+              <sort>true</sort>
+              <excludeGroupIds>org.eclipse.jetty,jakarta.servlet</excludeGroupIds>
+              <prependGroupId>true</prependGroupId>
+              <includeScope>runtime</includeScope>
             </configuration>
           </execution>
         </executions>

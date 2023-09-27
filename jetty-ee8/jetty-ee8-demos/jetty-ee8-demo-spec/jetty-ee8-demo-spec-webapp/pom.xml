@@ -16,27 +16,27 @@
 
   <dependencies>
     <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>jakarta.transaction</groupId>
       <artifactId>jakarta.transaction-api</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.eclipse.jetty.toolchain</groupId>
-      <artifactId>jetty-servlet-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>jakarta.annotation</groupId>
-      <artifactId>jakarta.annotation-api</artifactId>
-      <scope>provided</scope>
+      <groupId>org.eclipse.jetty.ee8.demos</groupId>
+      <artifactId>jetty-ee8-demo-container-initializer</artifactId>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty.ee8.demos</groupId>
       <artifactId>jetty-ee8-demo-web-fragment</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.eclipse.jetty.ee8.demos</groupId>
-      <artifactId>jetty-ee8-demo-container-initializer</artifactId>
+      <groupId>org.eclipse.jetty.toolchain</groupId>
+      <artifactId>jetty-servlet-api</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <!-- deliberately old version to test classloading -->
@@ -90,45 +90,6 @@
       </plugins>
     </pluginManagement>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>web-bundle-assembly</id>
-            <goals>
-              <goal>single</goal>
-            </goals>
-            <phase>package</phase>
-            <configuration>
-              <descriptors>
-                <descriptor>src/main/assembly/web-bundle.xml</descriptor>
-              </descriptors>
-              <archive>
-                <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
-              </archive>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <!-- also make this webapp an osgi bundle -->
-      <plugin>
-        <artifactId>maven-war-plugin</artifactId>
-        <configuration>
-          <archive>
-            <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
-          </archive>
-          <webResources>
-            <resource>
-              <directory>target</directory>
-              <includes>
-                <include>plugin-context.xml</include>
-              </includes>
-              <targetPath>META-INF</targetPath>
-            </resource>
-          </webResources>
-        </configuration>
-      </plugin>
 
       <plugin>
         <groupId>org.apache.felix</groupId>
@@ -151,46 +112,6 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-realm</id>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <outputDirectory>${project.build.directory}/realm</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>${ee9.module.path}/src/etc</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>copy-templates-resources</id>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <mavenFilteringHints>
-                <mavenFilteringHint>ee9-to-ee8</mavenFilteringHint>
-              </mavenFilteringHints>
-              <outputDirectory>${project.build.directory}/templates</outputDirectory>
-              <resources>
-                <resource>
-                  <filtering>true</filtering>
-                  <directory>${ee9.module.path}/src/main/templates</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
           <execution>
@@ -208,6 +129,27 @@
                   <filelist dir="${project.build.directory}/templates" files="annotations-context-header.xml,env-definitions.xml"></filelist>
                 </concat>
               </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>web-bundle-assembly</id>
+            <goals>
+              <goal>single</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <descriptors>
+                <descriptor>src/main/assembly/web-bundle.xml</descriptor>
+              </descriptors>
+              <archive>
+                <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+              </archive>
             </configuration>
           </execution>
         </executions>
@@ -257,6 +199,64 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-realm</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <outputDirectory>${project.build.directory}/realm</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${ee9.module.path}/src/etc</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-templates-resources</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <mavenFilteringHints>
+                <mavenFilteringHint>ee9-to-ee8</mavenFilteringHint>
+              </mavenFilteringHints>
+              <outputDirectory>${project.build.directory}/templates</outputDirectory>
+              <resources>
+                <resource>
+                  <filtering>true</filtering>
+                  <directory>${ee9.module.path}/src/main/templates</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- also make this webapp an osgi bundle -->
+      <plugin>
+        <artifactId>maven-war-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+          </archive>
+          <webResources>
+            <resource>
+              <directory>target</directory>
+              <includes>
+                <include>plugin-context.xml</include>
+              </includes>
+              <targetPath>META-INF</targetPath>
+            </resource>
+          </webResources>
+        </configuration>
       </plugin>
     </plugins>
   </build>

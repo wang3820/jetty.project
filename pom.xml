@@ -366,19 +366,26 @@
         <version>${logback.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>${findbugs.jsr305.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.google.errorprone</groupId>
-        <artifactId>error_prone_annotations</artifactId>
-        <version>${google.errorprone.version}</version>
-      </dependency>
-      <dependency>
         <groupId>com.google.code.gson</groupId>
         <artifactId>gson</artifactId>
         <version>${gson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.errorprone</groupId>
+        <artifactId>error_prone_annotations</artifactId>
+        <version>${google.errorprone.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>
@@ -411,28 +418,23 @@
         <version>${commons-codec.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-compress</artifactId>
-        <version>${commons-compress.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.avro</groupId>
-        <artifactId>avro</artifactId>
-        <version>${apache.avro.version}</version>
-      </dependency>
-      <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-core</artifactId>
         <version>${grpc.version}</version>
       </dependency>
       <dependency>
-        <groupId>net.java.dev.jna</groupId>
-        <artifactId>jna-jpms</artifactId>
-        <version>${jna.version}</version>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-handler</artifactId>
+        <version>${netty.version}</version>
       </dependency>
       <dependency>
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna</artifactId>
+        <version>${jna.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>net.java.dev.jna</groupId>
+        <artifactId>jna-jpms</artifactId>
         <version>${jna.version}</version>
       </dependency>
       <dependency>
@@ -454,6 +456,16 @@
         <groupId>org.apache.aries.spifly</groupId>
         <artifactId>org.apache.aries.spifly.dynamic.bundle</artifactId>
         <version>${spifly.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro</artifactId>
+        <version>${apache.avro.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-compress</artifactId>
+        <version>${commons-compress.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
@@ -491,12 +503,12 @@
         <version>${maven.deps.version}</version>
         <exclusions>
           <exclusion>
-            <groupId>javax.inject</groupId>
-            <artifactId>javax.inject</artifactId>
-          </exclusion>
-          <exclusion>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -539,14 +551,9 @@
         <version>${maven.plugin-tools.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-handler</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.awaitility</groupId>
-        <artifactId>awaitility</artifactId>
-        <version>${awaitility.version}</version>
+        <groupId>org.asciidoctor</groupId>
+        <artifactId>asciidoctor-maven-plugin</artifactId>
+        <version>${asciidoctor.maven.plugin.version}</version>
       </dependency>
       <dependency>
         <groupId>org.asciidoctor</groupId>
@@ -554,14 +561,9 @@
         <version>${asciidoctorj.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.asciidoctor</groupId>
-        <artifactId>asciidoctor-maven-plugin</artifactId>
-        <version>${asciidoctor.maven.plugin.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.conscrypt</groupId>
-        <artifactId>conscrypt-openjdk-uber</artifactId>
-        <version>${conscrypt.version}</version>
+        <groupId>org.awaitility</groupId>
+        <artifactId>awaitility</artifactId>
+        <version>${awaitility.version}</version>
       </dependency>
       <dependency>
         <groupId>org.codehaus.plexus</groupId>
@@ -577,6 +579,16 @@
         <groupId>org.codehaus.plexus</groupId>
         <artifactId>plexus-xml</artifactId>
         <version>${plexus-xml.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.conscrypt</groupId>
+        <artifactId>conscrypt-openjdk-uber</artifactId>
+        <version>${conscrypt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.equinox.http</groupId>
+        <artifactId>servlet</artifactId>
+        <version>${equinox-http-servlet-version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
@@ -595,12 +607,12 @@
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-alpn-java-server</artifactId>
+        <artifactId>jetty-alpn-java-client</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-alpn-java-client</artifactId>
+        <artifactId>jetty-alpn-java-server</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -635,11 +647,6 @@
         <type>zip</type>
       </dependency>
       <dependency>
-        <groupId>org.eclipse.jetty.tests</groupId>
-        <artifactId>jetty-home-tester</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-http</artifactId>
         <version>${project.version}</version>
@@ -647,6 +654,11 @@
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-http-spi</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-http-tools</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -728,12 +740,12 @@
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-session</artifactId>
+        <artifactId>jetty-server</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-server</artifactId>
+        <artifactId>jetty-session</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -773,12 +785,12 @@
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.fcgi</groupId>
-        <artifactId>jetty-fcgi-server</artifactId>
+        <artifactId>jetty-fcgi-proxy</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.fcgi</groupId>
-        <artifactId>jetty-fcgi-proxy</artifactId>
+        <artifactId>jetty-fcgi-server</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -793,17 +805,17 @@
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.http2</groupId>
+        <artifactId>jetty-http2-client-transport</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.http2</groupId>
         <artifactId>jetty-http2-common</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.http2</groupId>
         <artifactId>jetty-http2-hpack</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.eclipse.jetty.http2</groupId>
-        <artifactId>jetty-http2-client-transport</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -818,6 +830,11 @@
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.http3</groupId>
+        <artifactId>jetty-http3-client-transport</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.http3</groupId>
         <artifactId>jetty-http3-common</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -828,17 +845,17 @@
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.http3</groupId>
-        <artifactId>jetty-http3-client-transport</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.eclipse.jetty.http3</groupId>
         <artifactId>jetty-http3-server</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.memcached</groupId>
         <artifactId>jetty-memcached-sessions</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.osgi</groupId>
+        <artifactId>jetty-httpservice</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -861,11 +878,6 @@
         <artifactId>jetty-osgi-boot-warurl</artifactId>
         <version>${project.version}</version>
       </dependency>
-      <dependency>
-        <groupId>org.eclipse.jetty.osgi</groupId>
-        <artifactId>jetty-httpservice</artifactId>
-        <version>${project.version}</version>
-      </dependency>
 
       <dependency>
         <groupId>org.eclipse.jetty.quic</groupId>
@@ -884,12 +896,12 @@
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.quic</groupId>
-        <artifactId>jetty-quic-quiche-jna</artifactId>
+        <artifactId>jetty-quic-quiche-foreign-incubator</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.quic</groupId>
-        <artifactId>jetty-quic-quiche-foreign-incubator</artifactId>
+        <artifactId>jetty-quic-quiche-jna</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -898,8 +910,8 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-http-tools</artifactId>
+        <groupId>org.eclipse.jetty.tests</groupId>
+        <artifactId>jetty-home-tester</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -911,6 +923,22 @@
         <groupId>org.eclipse.jetty.tests</groupId>
         <artifactId>test-distribution-common</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.toolchain</groupId>
+        <artifactId>jetty-perf-helper</artifactId>
+        <version>${jetty.perf-helper.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.toolchain</groupId>
+        <artifactId>jetty-test-helper</artifactId>
+        <version>${jetty.test.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty.toolchain</groupId>
+        <artifactId>jetty-xhtml-schemas</artifactId>
+        <version>${jetty.xhtml.schemas-version}</version>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.websocket</groupId>
@@ -934,12 +962,12 @@
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.websocket</groupId>
-        <artifactId>jetty-websocket-jetty-common</artifactId>
+        <artifactId>jetty-websocket-jetty-client</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty.websocket</groupId>
-        <artifactId>jetty-websocket-jetty-client</artifactId>
+        <artifactId>jetty-websocket-jetty-common</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -947,21 +975,11 @@
         <artifactId>jetty-websocket-jetty-server</artifactId>
         <version>${project.version}</version>
       </dependency>
+
       <dependency>
-        <groupId>org.eclipse.jetty.toolchain</groupId>
-        <artifactId>jetty-perf-helper</artifactId>
-        <version>${jetty.perf-helper.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.eclipse.jetty.toolchain</groupId>
-        <artifactId>jetty-test-helper</artifactId>
-        <version>${jetty.test.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.eclipse.jetty.toolchain</groupId>
-        <artifactId>jetty-xhtml-schemas</artifactId>
-        <version>${jetty.xhtml.schemas-version}</version>
-        <scope>test</scope>
+        <groupId>org.eclipse.platform</groupId>
+        <artifactId>org.eclipse.osgi</artifactId>
+        <version>${osgi-version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.platform</groupId>
@@ -980,59 +998,10 @@
           </exclusion>
         </exclusions>
       </dependency>
-
-      <dependency>
-        <groupId>org.eclipse.platform</groupId>
-        <artifactId>org.eclipse.osgi</artifactId>
-        <version>${osgi-version}</version>
-      </dependency>
       <dependency>
         <groupId>org.eclipse.platform</groupId>
         <artifactId>org.eclipse.osgi.util</artifactId>
         <version>${osgi-util-version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.service.cm</artifactId>
-        <version>${osgi-service-cm-version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.service.component</artifactId>
-        <version>${osgi-service-component-version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.service.event</artifactId>
-        <version>${osgi-service-event-version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.util.tracker</artifactId>
-        <version>${osgi-util-tracker-version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.util.measurement</artifactId>
-        <version>${osgi-util-measurement-version}</version>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.util.position</artifactId>
-        <version>${osgi-util-position-version}</version>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.util.xml</artifactId>
-        <version>${osgi-util-xml-version}</version>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.eclipse.equinox.http</groupId>
-        <artifactId>servlet</artifactId>
-        <version>${equinox-http-servlet-version}</version>
       </dependency>
       <dependency>
         <groupId>org.hamcrest</groupId>
@@ -1055,13 +1024,6 @@
         <groupId>org.infinispan.protostream</groupId>
         <artifactId>protostream-processor</artifactId>
         <version>${infinispan.protostream.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson</groupId>
-        <artifactId>jackson-bom</artifactId>
-        <version>${jackson.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>org.jboss.logging</groupId>
@@ -1089,11 +1051,6 @@
         <version>${jboss-threads.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.wildfly.security</groupId>
-        <artifactId>wildfly-elytron</artifactId>
-        <version>${wildfly.elytron.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
         <version>${junit.version}</version>
@@ -1119,18 +1076,23 @@
       </dependency>
       <dependency>
         <groupId>org.ops4j.pax.exam</groupId>
+        <artifactId>pax-exam-container-forked</artifactId>
+        <version>${pax.exam.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.ops4j.pax.exam</groupId>
         <artifactId>pax-exam-inject</artifactId>
         <version>${pax.exam.version}</version>
       </dependency>
       <dependency>
         <groupId>org.ops4j.pax.exam</groupId>
-        <artifactId>pax-exam-container-forked</artifactId>
+        <artifactId>pax-exam-junit4</artifactId>
         <version>${pax.exam.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.ops4j.pax.tinybundles</groupId>
-        <artifactId>tinybundles</artifactId>
-        <version>${tinybundles.version}</version>
+        <groupId>org.ops4j.pax.exam</groupId>
+        <artifactId>pax-exam-link-mvn</artifactId>
+        <version>${pax.exam.version}</version>
       </dependency>
       <dependency>
         <groupId>org.ops4j.pax.swissbox</groupId>
@@ -1143,14 +1105,9 @@
         <version>${swissbox.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.ops4j.pax.exam</groupId>
-        <artifactId>pax-exam-junit4</artifactId>
-        <version>${pax.exam.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.ops4j.pax.exam</groupId>
-        <artifactId>pax-exam-link-mvn</artifactId>
-        <version>${pax.exam.version}</version>
+        <groupId>org.ops4j.pax.tinybundles</groupId>
+        <artifactId>tinybundles</artifactId>
+        <version>${tinybundles.version}</version>
       </dependency>
       <dependency>
         <groupId>org.ops4j.pax.url</groupId>
@@ -1171,14 +1128,18 @@
       </dependency>
       <dependency>
         <groupId>org.osgi</groupId>
-        <!-- newer artifact location, some of our transitive deps use this up to date coordinate -->
-        <artifactId>osgi.core</artifactId>
-        <version>${org.osgi.core.version}</version>
+        <artifactId>org.osgi.service.cm</artifactId>
+        <version>${osgi-service-cm-version}</version>
       </dependency>
       <dependency>
         <groupId>org.osgi</groupId>
-        <artifactId>osgi.annotation</artifactId>
-        <version>${org.osgi.annotation.version}</version>
+        <artifactId>org.osgi.service.component</artifactId>
+        <version>${osgi-service-component-version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <artifactId>org.osgi.service.event</artifactId>
+        <version>${osgi-service-event-version}</version>
       </dependency>
       <dependency>
         <groupId>org.osgi</groupId>
@@ -1187,8 +1148,42 @@
       </dependency>
       <dependency>
         <groupId>org.osgi</groupId>
+        <artifactId>org.osgi.util.measurement</artifactId>
+        <version>${osgi-util-measurement-version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <artifactId>org.osgi.util.position</artifactId>
+        <version>${osgi-util-position-version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.osgi</groupId>
         <artifactId>org.osgi.util.promise</artifactId>
         <version>${org.osgi.util.promise.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <artifactId>org.osgi.util.tracker</artifactId>
+        <version>${osgi-util-tracker-version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <artifactId>org.osgi.util.xml</artifactId>
+        <version>${osgi-util-xml-version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <artifactId>osgi.annotation</artifactId>
+        <version>${org.osgi.annotation.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.osgi</groupId>
+        <!-- newer artifact location, some of our transitive deps use this up to date coordinate -->
+        <artifactId>osgi.core</artifactId>
+        <version>${org.osgi.core.version}</version>
       </dependency>
       <dependency>
         <groupId>org.ow2.asm</groupId>
@@ -1229,6 +1224,11 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>org.wildfly.security</groupId>
+        <artifactId>wildfly-elytron</artifactId>
+        <version>${wildfly.elytron.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1249,6 +1249,41 @@
 
     <pluginManagement>
       <plugins>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${spotless.maven.plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>com.mycila</groupId>
+          <artifactId>license-maven-plugin</artifactId>
+          <version>${license.maven.plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.felix</groupId>
+          <artifactId>maven-bundle-plugin</artifactId>
+          <version>${maven.bundle.plugin.version}</version>
+          <configuration>
+            <supportedProjectTypes>
+              <supportedProjectType>jar</supportedProjectType>
+              <supportedProjectType>maven-plugin</supportedProjectType>
+            </supportedProjectTypes>
+            <instructions>
+              <Bundle-SymbolicName>${bundle-symbolic-name}</Bundle-SymbolicName>
+              <Bundle-Description>Jetty module for ${project.name}</Bundle-Description>
+              <Bundle-RequiredExecutionEnvironment>JavaSE-11</Bundle-RequiredExecutionEnvironment>
+              <Bundle-DocURL>${jetty.url}</Bundle-DocURL>
+              <Bundle-Vendor>Eclipse Jetty Project</Bundle-Vendor>
+              <Bundle-Classpath>.</Bundle-Classpath>
+              <Bundle-Copyright>Copyright (c) 1995 Mort Bay Consulting Pty Ltd and others.</Bundle-Copyright>
+              <Import-Package>${osgi.slf4j.import.packages},
+                *</Import-Package>
+              <_provider-policy><![CDATA[$<range;[===,=+)>]]></_provider-policy>
+              <_consumer-policy><![CDATA[$<range;[===,+)>]]></_consumer-policy>
+              <_noee>true</_noee>
+            </instructions>
+          </configuration>
+        </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-antrun-plugin</artifactId>
@@ -1321,6 +1356,11 @@
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-install-plugin</artifactId>
+          <version>${maven.install.plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-invoker-plugin</artifactId>
           <version>${maven.invoker.plugin.version}</version>
           <configuration>
@@ -1347,11 +1387,6 @@
               <localRepo>${localRepoPath}</localRepo>
             </filterProperties>
           </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-install-plugin</artifactId>
-          <version>${maven.install.plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -1493,62 +1528,6 @@
           <version>${maven.war.plugin.version}</version>
         </plugin>
         <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>flatten-maven-plugin</artifactId>
-          <version>${flatten.maven.plugin.version}</version>
-          <configuration>
-            <outputDirectory>${project.build.directory}</outputDirectory>
-            <flattenedPomFilename>flattened-pom.xml</flattenedPomFilename>
-            <flattenMode>bom</flattenMode>
-            <updatePomFile>true</updatePomFile>
-            <pomElements>
-              <build>remove</build>
-              <properties>remove</properties>
-              <distributionManagement>remove</distributionManagement>
-            </pomElements>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.eclipse.jetty.toolchain</groupId>
-          <artifactId>jetty-version-maven-plugin</artifactId>
-          <version>${jetty-version.maven.plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.jacoco</groupId>
-          <artifactId>jacoco-maven-plugin</artifactId>
-          <version>${jacoco.maven.plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>com.mycila</groupId>
-          <artifactId>license-maven-plugin</artifactId>
-          <version>${license.maven.plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.felix</groupId>
-          <artifactId>maven-bundle-plugin</artifactId>
-          <version>${maven.bundle.plugin.version}</version>
-          <configuration>
-            <supportedProjectTypes>
-              <supportedProjectType>jar</supportedProjectType>
-              <supportedProjectType>maven-plugin</supportedProjectType>
-            </supportedProjectTypes>
-            <instructions>
-              <Bundle-SymbolicName>${bundle-symbolic-name}</Bundle-SymbolicName>
-              <Bundle-Description>Jetty module for ${project.name}</Bundle-Description>
-              <Bundle-RequiredExecutionEnvironment>JavaSE-11</Bundle-RequiredExecutionEnvironment>
-              <Bundle-DocURL>${jetty.url}</Bundle-DocURL>
-              <Bundle-Vendor>Eclipse Jetty Project</Bundle-Vendor>
-              <Bundle-Classpath>.</Bundle-Classpath>
-              <Bundle-Copyright>Copyright (c) 1995 Mort Bay Consulting Pty Ltd and others.</Bundle-Copyright>
-              <Import-Package>${osgi.slf4j.import.packages},
-                *</Import-Package>
-              <_provider-policy><![CDATA[$<range;[===,=+)>]]></_provider-policy>
-              <_consumer-policy><![CDATA[$<range;[===,+)>]]></_consumer-policy>
-              <_noee>true</_noee>
-            </instructions>
-          </configuration>
-        </plugin>
-        <plugin>
           <groupId>org.apache.servicemix.tooling</groupId>
           <artifactId>depends-maven-plugin</artifactId>
           <version>${depends.maven.plugin.version}</version>
@@ -1612,9 +1591,20 @@
           <version>${maven.exec.plugin.version}</version>
         </plugin>
         <plugin>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>h2spec-maven-plugin</artifactId>
-          <version>${h2spec.maven.plugin.version}</version>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>flatten-maven-plugin</artifactId>
+          <version>${flatten.maven.plugin.version}</version>
+          <configuration>
+            <outputDirectory>${project.build.directory}</outputDirectory>
+            <flattenedPomFilename>flattened-pom.xml</flattenedPomFilename>
+            <flattenMode>bom</flattenMode>
+            <updatePomFile>true</updatePomFile>
+            <pomElements>
+              <build>remove</build>
+              <properties>remove</properties>
+              <distributionManagement>remove</distributionManagement>
+            </pomElements>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -1628,13 +1618,161 @@
           </configuration>
         </plugin>
         <plugin>
-          <groupId>com.diffplug.spotless</groupId>
-          <artifactId>spotless-maven-plugin</artifactId>
-          <version>${spotless.maven.plugin.version}</version>
+          <groupId>org.eclipse.jetty.toolchain</groupId>
+          <artifactId>jetty-version-maven-plugin</artifactId>
+          <version>${jetty-version.maven.plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.jacoco</groupId>
+          <artifactId>jacoco-maven-plugin</artifactId>
+          <version>${jacoco.maven.plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.mortbay.jetty</groupId>
+          <artifactId>h2spec-maven-plugin</artifactId>
+          <version>${h2spec.maven.plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <pom>
+            <includes>
+              <include>pom.xml</include>
+            </includes>
+            <sortPom>
+              <nrOfIndentSpace>2</nrOfIndentSpace>
+              <!-- default see https://github.com/Ekryd/sortpom/wiki/PredefinedSortOrderProfiles -->
+              <predefinedSortOrder>recommended_2008_06</predefinedSortOrder>
+              <!-- Sort properties -->
+              <sortProperties>true</sortProperties>
+              <!-- Sort modules -->
+              <sortModules>true</sortModules>
+              <!-- Sort plugin executions -->
+              <sortExecutions>true</sortExecutions>
+              <!-- Sort dependencies see https://github.com/Ekryd/sortpom/wiki/SortDependencies -->
+              <sortDependencies>groupId,artifactId</sortDependencies>
+              <!-- Sort dependency exclusions -->
+              <sortDependencyExclusions>groupId,artifactId</sortDependencyExclusions>
+              <!-- Sort plugins: https://github.com/Ekryd/sortpom/wiki/SortPlugins -->
+              <sortPlugins>groupId,artifactId</sortPlugins>
+            </sortPom>
+          </pom>
+          <upToDateChecking>
+            <enabled>true</enabled>
+          </upToDateChecking>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <inherited>false</inherited>
+        <configuration>
+          <failIfMissing>true</failIfMissing>
+          <aggregate>true</aggregate>
+          <strictCheck>true</strictCheck>
+        </configuration>
+        <executions>
+          <execution>
+            <id>check-java-headers</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <header>header-template.txt</header>
+              <mapping>
+                <java>DOUBLESLASH_STYLE</java>
+                <adoc>DOUBLESLASH_STYLE</adoc>
+              </mapping>
+              <includes>
+                <include>**/*.java</include>
+                <include>**/*.adoc</include>
+              </includes>
+              <excludes>
+                <!-- Sabre Holdings -->
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/AntWebAppContext.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/Connectors.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/ContextHandlers.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/FileMatchingConfiguration.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/LoginServices.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/SystemProperties.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/utils/ServerProxy.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/utils/TaskLog.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/AntWebXmlConfiguration.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/JettyRunTask.java</exclude>
+                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/ServerProxyImpl.java</exclude>
+                <!-- Aki Yoshida -->
+                <exclude>jetty-core/jetty-util/src/main/java/org/eclipse/jetty/util/security/UnixCrypt.java</exclude>
+                <!-- Distribution Text (no header, too noisy) -->
+                <exclude>jetty-home/src/main/resources/README.adoc</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>manifest</goal>
+            </goals>
+            <phase>process-classes</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${maven.checkstyle.plugin.version}</version>
+        <configuration>
+          <configLocation>jetty-checkstyle.xml</configLocation>
+          <includeTestSourceDirectory>true</includeTestSourceDirectory>
+          <violationSeverity>warning</violationSeverity>
+          <consoleOutput>true</consoleOutput>
+          <sourceDirectories>
+            <!-- only scan source directory (not generated, filtered, or copied source) -->
+            <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+          </sourceDirectories>
+          <testSourceDirectories>
+            <sourceDirectory>${project.build.testSourceDirectory}</sourceDirectory>
+          </testSourceDirectories>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>${checkstyle.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>build-resources</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>checkstyle-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
@@ -1702,6 +1840,63 @@
         </executions>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <configuration>
+          <autoVersionSubmodules>true</autoVersionSubmodules>
+          <useReleaseProfile>false</useReleaseProfile>
+          <goals>deploy</goals>
+          <arguments>-Peclipse-release</arguments>
+          <preparationGoals>clean install</preparationGoals>
+          <mavenExecutorId>forked-path</mavenExecutorId>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-remote-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-shared-resources</id>
+            <goals>
+              <goal>process</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <resourceBundles>
+                <resourceBundle>org.eclipse.jetty:build-resources:${project.version}</resourceBundle>
+              </resourceBundles>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Build helper maven plugin sets the parsedVersion.osgiVersion property -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>set-osgi-version</id>
+            <goals>
+              <goal>parse-version</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.jetty.toolchain</groupId>
+        <artifactId>jetty-version-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>attach-version</id>
+            <goals>
+              <goal>attach-version-text</goal>
+            </goals>
+            <phase>process-resources</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <configuration>
@@ -1758,195 +1953,6 @@
                 <include>**/org/eclipse/jetty/**</include>
               </includes>
             </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-release-plugin</artifactId>
-        <configuration>
-          <autoVersionSubmodules>true</autoVersionSubmodules>
-          <useReleaseProfile>false</useReleaseProfile>
-          <goals>deploy</goals>
-          <arguments>-Peclipse-release</arguments>
-          <preparationGoals>clean install</preparationGoals>
-          <mavenExecutorId>forked-path</mavenExecutorId>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-remote-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-shared-resources</id>
-            <goals>
-              <goal>process</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <resourceBundles>
-                <resourceBundle>org.eclipse.jetty:build-resources:${project.version}</resourceBundle>
-              </resourceBundles>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>com.mycila</groupId>
-        <artifactId>license-maven-plugin</artifactId>
-        <inherited>false</inherited>
-        <configuration>
-          <failIfMissing>true</failIfMissing>
-          <aggregate>true</aggregate>
-          <strictCheck>true</strictCheck>
-        </configuration>
-        <executions>
-          <execution>
-            <id>check-java-headers</id>
-            <goals>
-              <goal>check</goal>
-            </goals>
-            <phase>verify</phase>
-            <configuration>
-              <header>header-template.txt</header>
-              <mapping>
-                <java>DOUBLESLASH_STYLE</java>
-                <adoc>DOUBLESLASH_STYLE</adoc>
-              </mapping>
-              <includes>
-                <include>**/*.java</include>
-                <include>**/*.adoc</include>
-              </includes>
-              <excludes>
-                <!-- Sabre Holdings -->
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/AntWebAppContext.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/Connectors.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/ContextHandlers.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/FileMatchingConfiguration.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/LoginServices.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/types/SystemProperties.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/utils/ServerProxy.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/utils/TaskLog.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/AntWebXmlConfiguration.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/JettyRunTask.java</exclude>
-                <exclude>jetty-ee*/jetty-ee*-ant/src/main/java/org/eclipse/jetty/ee*/ant/ServerProxyImpl.java</exclude>
-                <!-- Aki Yoshida -->
-                <exclude>jetty-core/jetty-util/src/main/java/org/eclipse/jetty/util/security/UnixCrypt.java</exclude>
-                <!-- Distribution Text (no header, too noisy) -->
-                <exclude>jetty-home/src/main/resources/README.adoc</exclude>
-              </excludes>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.felix</groupId>
-        <artifactId>maven-bundle-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>manifest</goal>
-            </goals>
-            <phase>process-classes</phase>
-          </execution>
-        </executions>
-      </plugin>
-      <!-- Build helper maven plugin sets the parsedVersion.osgiVersion property -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>set-osgi-version</id>
-            <goals>
-              <goal>parse-version</goal>
-            </goals>
-            <phase>validate</phase>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.eclipse.jetty.toolchain</groupId>
-        <artifactId>jetty-version-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>attach-version</id>
-            <goals>
-              <goal>attach-version-text</goal>
-            </goals>
-            <phase>process-resources</phase>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>${maven.checkstyle.plugin.version}</version>
-        <configuration>
-          <configLocation>jetty-checkstyle.xml</configLocation>
-          <includeTestSourceDirectory>true</includeTestSourceDirectory>
-          <violationSeverity>warning</violationSeverity>
-          <consoleOutput>true</consoleOutput>
-          <sourceDirectories>
-            <!-- only scan source directory (not generated, filtered, or copied source) -->
-            <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
-          </sourceDirectories>
-          <testSourceDirectories>
-            <sourceDirectory>${project.build.testSourceDirectory}</sourceDirectory>
-          </testSourceDirectories>
-        </configuration>
-        <dependencies>
-          <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>build-resources</artifactId>
-            <version>${project.version}</version>
-          </dependency>
-          <dependency>
-            <groupId>com.puppycrawl.tools</groupId>
-            <artifactId>checkstyle</artifactId>
-            <version>${checkstyle.version}</version>
-          </dependency>
-        </dependencies>
-        <executions>
-          <execution>
-            <id>checkstyle-check</id>
-            <goals>
-              <goal>check</goal>
-            </goals>
-            <phase>validate</phase>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>com.diffplug.spotless</groupId>
-        <artifactId>spotless-maven-plugin</artifactId>
-        <configuration>
-          <pom>
-            <includes>
-              <include>pom.xml</include>
-            </includes>
-            <sortPom>
-              <nrOfIndentSpace>2</nrOfIndentSpace>
-              <!-- default see https://github.com/Ekryd/sortpom/wiki/PredefinedSortOrderProfiles -->
-              <predefinedSortOrder>recommended_2008_06</predefinedSortOrder>
-              <!-- Sort properties -->
-              <sortProperties>true</sortProperties>
-              <!-- Sort modules -->
-              <sortModules>true</sortModules>
-              <!-- Sort plugin executions -->
-              <sortExecutions>true</sortExecutions>
-            </sortPom>
-          </pom>
-          <upToDateChecking>
-            <enabled>true</enabled>
-          </upToDateChecking>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-            <phase>validate</phase>
           </execution>
         </executions>
       </plugin>
@@ -2012,6 +2018,24 @@
         <plugins>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>config-assembly</id>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <phase>package</phase>
+                <configuration>
+                  <descriptorRefs>
+                    <descriptorRef>config</descriptorRef>
+                  </descriptorRefs>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-resources-plugin</artifactId>
             <executions>
               <execution>
@@ -2040,24 +2064,6 @@
               </execution>
             </executions>
           </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-assembly-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>config-assembly</id>
-                <goals>
-                  <goal>single</goal>
-                </goals>
-                <phase>package</phase>
-                <configuration>
-                  <descriptorRefs>
-                    <descriptorRef>config</descriptorRef>
-                  </descriptorRefs>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
         </plugins>
       </build>
     </profile>
@@ -2070,6 +2076,23 @@
       </activation>
       <build>
         <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <phase>package</phase>
+                <configuration>
+                  <descriptors>
+                    <descriptor>src/main/assembly/config.xml</descriptor>
+                  </descriptors>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-resources-plugin</artifactId>
@@ -2100,23 +2123,6 @@
               </execution>
             </executions>
           </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-assembly-plugin</artifactId>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>single</goal>
-                </goals>
-                <phase>package</phase>
-                <configuration>
-                  <descriptors>
-                    <descriptor>src/main/assembly/config.xml</descriptor>
-                  </descriptors>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
         </plugins>
       </build>
     </profile>
@@ -2137,6 +2143,14 @@
         </pluginManagement>
         <plugins>
           <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <inherited>true</inherited>
+            <configuration>
+              <updateReleaseInfo>true</updateReleaseInfo>
+            </configuration>
+          </plugin>
+          <plugin>
             <artifactId>maven-enforcer-plugin</artifactId>
             <executions>
               <execution>
@@ -2152,6 +2166,20 @@
                     </requireJavaVersion>
                   </rules>
                 </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>${maven.gpg.plugin.version}</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+                <phase>verify</phase>
               </execution>
             </executions>
           </plugin>
@@ -2179,28 +2207,6 @@
                   <goal>jar-no-fork</goal>
                 </goals>
                 <phase>package</phase>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-deploy-plugin</artifactId>
-            <inherited>true</inherited>
-            <configuration>
-              <updateReleaseInfo>true</updateReleaseInfo>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-gpg-plugin</artifactId>
-            <version>${maven.gpg.plugin.version}</version>
-            <executions>
-              <execution>
-                <id>sign-artifacts</id>
-                <goals>
-                  <goal>sign</goal>
-                </goals>
-                <phase>verify</phase>
               </execution>
             </executions>
           </plugin>
@@ -2272,18 +2278,6 @@
         </pluginManagement>
         <plugins>
           <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>javadoc-no-fork</goal>
-                </goals>
-                <phase>package</phase>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-maven-plugin</artifactId>
             <executions>
@@ -2301,6 +2295,18 @@
                   <effort>${spotbugs.effort}</effort>
                   <threshold>${spotbugs.threshold}</threshold>
                 </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>javadoc-no-fork</goal>
+                </goals>
+                <phase>package</phase>
               </execution>
             </executions>
           </plugin>

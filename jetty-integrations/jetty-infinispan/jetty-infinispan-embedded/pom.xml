@@ -33,27 +33,6 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>build-deps-file</id>
-            <goals>
-              <goal>list</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <appendOutput>false</appendOutput>
-              <outputFile>${project.build.directory}/deps.txt</outputFile>
-              <sort>true</sort>
-              <excludeGroupIds>org.eclipse.jetty,jakarta.servlet,org.slf4j</excludeGroupIds>
-              <prependGroupId>true</prependGroupId>
-              <includeScope>runtime</includeScope>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
           <execution>
@@ -82,6 +61,27 @@
                   <fileset file="${project.build.directory}/deps.txt"></fileset>
                 </concat>
               </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>build-deps-file</id>
+            <goals>
+              <goal>list</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <appendOutput>false</appendOutput>
+              <outputFile>${project.build.directory}/deps.txt</outputFile>
+              <sort>true</sort>
+              <excludeGroupIds>org.eclipse.jetty,jakarta.servlet,org.slf4j</excludeGroupIds>
+              <prependGroupId>true</prependGroupId>
+              <includeScope>runtime</includeScope>
             </configuration>
           </execution>
         </executions>

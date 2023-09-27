@@ -18,17 +18,18 @@
       <exclusions>
         <exclusion>
           <groupId>org.infinispan</groupId>
-          <artifactId>infinispan-core</artifactId>
+          <artifactId>infinispan-commons</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.infinispan</groupId>
-          <artifactId>infinispan-commons</artifactId>
+          <artifactId>infinispan-core</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.infinispan</groupId>
-      <artifactId>infinispan-query</artifactId>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-slf4j-impl</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty.toolchain</groupId>
@@ -36,35 +37,13 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-slf4j-impl</artifactId>
-      <scope>test</scope>
+      <groupId>org.infinispan</groupId>
+      <artifactId>infinispan-query</artifactId>
     </dependency>
   </dependencies>
   <build>
     <defaultGoal>install</defaultGoal>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>build-deps-file</id>
-            <goals>
-              <goal>list</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <appendOutput>false</appendOutput>
-              <outputFile>${project.build.directory}/deps.txt</outputFile>
-              <sort>true</sort>
-              <excludeGroupIds>org.eclipse.jetty,jakarta.servlet,org.slf4j</excludeGroupIds>
-              <prependGroupId>true</prependGroupId>
-              <includeScope>runtime</includeScope>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
@@ -95,6 +74,27 @@
                   <fileset file="${project.build.directory}/deps.txt"></fileset>
                 </concat>
               </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>build-deps-file</id>
+            <goals>
+              <goal>list</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <appendOutput>false</appendOutput>
+              <outputFile>${project.build.directory}/deps.txt</outputFile>
+              <sort>true</sort>
+              <excludeGroupIds>org.eclipse.jetty,jakarta.servlet,org.slf4j</excludeGroupIds>
+              <prependGroupId>true</prependGroupId>
+              <includeScope>runtime</includeScope>
             </configuration>
           </execution>
         </executions>

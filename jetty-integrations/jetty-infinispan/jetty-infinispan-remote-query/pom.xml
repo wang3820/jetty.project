@@ -13,22 +13,22 @@
   </properties>
   <dependencies>
     <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-infinispan-common</artifactId>
       <exclusions>
         <exclusion>
           <groupId>org.infinispan</groupId>
-          <artifactId>infinispan-core</artifactId>
+          <artifactId>infinispan-commons</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.infinispan</groupId>
-          <artifactId>infinispan-commons</artifactId>
+          <artifactId>infinispan-core</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.infinispan</groupId>
-      <artifactId>infinispan-query</artifactId>
     </dependency>
     <dependency>
       <groupId>org.infinispan</groupId>
@@ -36,11 +36,11 @@
     </dependency>
     <dependency>
       <groupId>org.infinispan</groupId>
-      <artifactId>infinispan-remote-query-client</artifactId>
+      <artifactId>infinispan-query</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.google.code.gson</groupId>
-      <artifactId>gson</artifactId>
+      <groupId>org.infinispan</groupId>
+      <artifactId>infinispan-remote-query-client</artifactId>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -49,38 +49,17 @@
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
-      <artifactId>testcontainers</artifactId>
+      <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
-      <artifactId>junit-jupiter</artifactId>
+      <artifactId>testcontainers</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>build-deps-file</id>
-            <goals>
-              <goal>list</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <appendOutput>false</appendOutput>
-              <outputFile>${project.build.directory}/deps.txt</outputFile>
-              <sort>true</sort>
-              <excludeGroupIds>org.eclipse.jetty,jakarta.servlet</excludeGroupIds>
-              <prependGroupId>true</prependGroupId>
-              <includeScope>runtime</includeScope>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
@@ -112,6 +91,27 @@
                   <fileset file="${project.build.directory}/deps.txt"></fileset>
                 </concat>
               </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>build-deps-file</id>
+            <goals>
+              <goal>list</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <appendOutput>false</appendOutput>
+              <outputFile>${project.build.directory}/deps.txt</outputFile>
+              <sort>true</sort>
+              <excludeGroupIds>org.eclipse.jetty,jakarta.servlet</excludeGroupIds>
+              <prependGroupId>true</prependGroupId>
+              <includeScope>runtime</includeScope>
             </configuration>
           </execution>
         </executions>

@@ -14,9 +14,19 @@
     <spotbugs.onlyAnalyze>org.eclipse.jetty.ee10.osgi.boot.jsp.*</spotbugs.onlyAnalyze>
   </properties>
   <dependencies>
+    <!-- Servlet Deps -->
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-deploy</artifactId>
+    </dependency>
+    <!-- JSP Deps -->
+    <dependency>
+      <groupId>org.eclipse.jetty.ee10</groupId>
+      <artifactId>jetty-ee10-apache-jsp</artifactId>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty.ee10.osgi</groupId>
@@ -31,38 +41,10 @@
       <groupId>org.eclipse.platform</groupId>
       <artifactId>org.eclipse.osgi.services</artifactId>
     </dependency>
-    <!-- Servlet Deps -->
-    <dependency>
-      <groupId>jakarta.servlet</groupId>
-      <artifactId>jakarta.servlet-api</artifactId>
-    </dependency>
-    <!-- JSP Deps -->
-    <dependency>
-      <groupId>org.eclipse.jetty.ee10</groupId>
-      <artifactId>jetty-ee10-apache-jsp</artifactId>
-    </dependency>
   </dependencies>
 
   <build>
     <plugins>
-      <!-- necessary because 10.0.0-M5 is not a valid osgi version -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>set-jsp-api-version</id>
-            <goals>
-              <goal>parse-version</goal>
-            </goals>
-            <phase>validate</phase>
-            <configuration>
-              <versionString>${jsp.impl.version}</versionString>
-              <propertyPrefix>jspImpl</propertyPrefix>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
 
       <plugin>
         <groupId>org.apache.felix</groupId>
@@ -143,6 +125,24 @@
                 org.apache.el.*;version="[$(version;===;${jspImpl.osgiVersion}),$(version;+;${jspImpl.osgiVersion}))"</DynamicImport-Package>
           </instructions>
         </configuration>
+      </plugin>
+      <!-- necessary because 10.0.0-M5 is not a valid osgi version -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>set-jsp-api-version</id>
+            <goals>
+              <goal>parse-version</goal>
+            </goals>
+            <phase>validate</phase>
+            <configuration>
+              <versionString>${jsp.impl.version}</versionString>
+              <propertyPrefix>jspImpl</propertyPrefix>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

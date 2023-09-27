@@ -14,12 +14,12 @@
   <dependencies>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-session</artifactId>
+      <artifactId>jetty-jmx</artifactId>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-jmx</artifactId>
-      <optional>true</optional>
+      <artifactId>jetty-session</artifactId>
     </dependency>
     <dependency>
       <groupId>org.mongodb</groupId>
